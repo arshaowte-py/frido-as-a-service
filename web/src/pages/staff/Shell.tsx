@@ -22,11 +22,12 @@ export default function StaffShell() {
 
   return (
     <div className="min-h-full bg-ink-100">
-      <header className="border-b border-ink-200 bg-white">
+      {/* Frido black bar with yellow accents — the staff console's own identity. */}
+      <header className="bg-ink-900">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-          <Logo />
+          <Logo onDark />
           <Pill tone="brand">{staff.role.replace('_', ' ')}</Pill>
-          <span className="hidden text-sm text-ink-500 sm:inline">
+          <span className="hidden text-sm text-ink-300 sm:inline">
             {staff.name}
             {staff.store ? ` · ${staff.store.name}` : ' · all stores'}
           </span>
@@ -35,7 +36,7 @@ export default function StaffShell() {
               signOut();
               navigate('/staff/login');
             }}
-            className="ml-auto text-sm font-semibold text-ink-400 hover:text-ink-900"
+            className="ml-auto text-sm font-semibold text-ink-400 hover:text-white"
           >
             Sign out
           </button>
@@ -50,8 +51,8 @@ export default function StaffShell() {
                 cx(
                   'whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition',
                   isActive
-                    ? 'border-brand-600 text-brand-700'
-                    : 'border-transparent text-ink-500 hover:text-ink-900',
+                    ? 'border-brand-500 text-white'
+                    : 'border-transparent text-ink-400 hover:text-white',
                 )
               }
             >

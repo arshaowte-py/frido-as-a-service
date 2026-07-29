@@ -42,7 +42,7 @@ function BarRow({
       </div>
       <div className="h-2.5 rounded-full bg-ink-100">
         <div
-          className={cx('h-full rounded-full', tone === 'brand' ? 'bg-brand-600' : 'bg-ink-400')}
+          className={cx('h-full rounded-full', tone === 'brand' ? 'bg-brand-500' : 'bg-ink-400')}
           style={{ width: `${width}%` }}
         />
       </div>
@@ -80,7 +80,7 @@ function DailyChart({ daily }: { daily: Analytics['daily'] }) {
             <span
               className={cx(
                 'w-full rounded-t transition-colors',
-                hover === index ? 'bg-brand-700' : 'bg-brand-600',
+                hover === index ? 'bg-brand-500' : 'bg-brand-500',
               )}
               style={{ height: `${Math.max((day.sessions / max) * 100, 3)}%` }}
             />
@@ -250,7 +250,7 @@ export default function Insights() {
                     <div className="flex items-center gap-2">
                       <div className="h-2.5 flex-1 rounded-full bg-ink-100">
                         <div
-                          className="h-full rounded-full bg-brand-600"
+                          className="h-full rounded-full bg-brand-500"
                           style={{ width: `${Math.max((store.sessions / storeMax) * 100, store.sessions > 0 ? 2 : 0)}%` }}
                         />
                       </div>

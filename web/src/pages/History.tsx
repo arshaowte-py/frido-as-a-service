@@ -57,8 +57,8 @@ export default function History() {
         {activeSession && (
           <Card className="flex items-center justify-between gap-3 bg-brand-50 p-4 ring-brand-300/40">
             <div className="min-w-0">
-              <p className="text-sm font-bold text-brand-700">Out right now</p>
-              <p className="truncate text-xs text-brand-600">
+              <p className="text-sm font-bold text-sky-700">Out right now</p>
+              <p className="truncate text-xs text-sky-700">
                 {activeSession.unit?.product?.name} · {activeSession.unit?.code}
               </p>
             </div>
@@ -82,7 +82,7 @@ export default function History() {
                       Expires {formatDate(offer.expiresAt)}
                     </p>
                   </div>
-                  <span className="shrink-0 rounded-lg bg-accent-100 px-2.5 py-1.5 font-mono text-sm font-bold text-accent-700">
+                  <span className="shrink-0 rounded-lg bg-clay-100 px-2.5 py-1.5 font-mono text-sm font-bold text-clay-700">
                     {offer.code}
                   </span>
                 </Card>

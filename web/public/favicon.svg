@@ -1,12 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="8" fill="#0d8570" />
+  <rect width="32" height="32" rx="8" fill="#101820" />
   <text
     x="16"
-    y="24"
-    font-family="ui-sans-serif, system-ui, sans-serif"
-    font-size="22"
+    y="23"
+    font-family="Outfit, ui-sans-serif, system-ui, sans-serif"
+    font-size="21"
     font-weight="900"
-    fill="#ffffff"
+    fill="#FFD100"
     text-anchor="middle"
   >f</text>
 </svg>

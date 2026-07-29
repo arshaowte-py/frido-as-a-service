@@ -1,48 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" role="img" aria-label="Frido Prime Plus Electric Wheelchair">
   <title>Frido Prime Plus Electric Wheelchair</title>
   <defs>
-    <linearGradient id="wheelchairBg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#eefbf7" />
-      <stop offset="100%" stop-color="#d3f5ec" />
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f5f7f9" />
+      <stop offset="100%" stop-color="#fffbe6" />
     </linearGradient>
   </defs>
+  <rect width="240" height="200" rx="20" fill="url(#bg)" />
+  <ellipse cx="122" cy="178" rx="82" ry="9" fill="#101820" opacity="0.06" />
 
-  <rect width="240" height="200" rx="20" fill="url(#wheelchairBg)" />
-  <ellipse cx="126" cy="176" rx="74" ry="9" fill="#7fdcc6" opacity="0.5" />
-
-  <g fill="none" stroke="#0a6957" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
-    <!-- backrest and seat -->
-    <path d="M82 60h24v46H82z" fill="#12a186" stroke="none" />
-    <path d="M78 112V56" />
-    <path d="M78 56h30" stroke-width="5" />
-    <path d="M78 112h62" />
-
-    <!-- armrest with joystick -->
-    <path d="M100 84h44" stroke-width="5" />
-    <path d="M144 84V74" stroke-width="5" />
-    <circle cx="144" cy="70" r="6" fill="#f59e0b" stroke-width="4" />
-
-    <!-- battery pack -->
-    <path d="M96 118h40a5 5 0 0 1 5 5v12a5 5 0 0 1-5 5H96a5 5 0 0 1-5-5v-12a5 5 0 0 1 5-5z" fill="#d3f5ec" stroke-width="5" />
-
-    <!-- footplate -->
-    <path d="M140 112l24 14" />
-    <path d="M158 130l16 6" stroke-width="5" />
-
-    <!-- drive wheel -->
-    <circle cx="98" cy="146" r="26" fill="#ffffff" />
-    <g stroke-width="3" opacity="0.5">
-      <path d="M98 122v14" />
-      <path d="M98 156v14" />
-      <path d="M74 146h14" />
-      <path d="M108 146h14" />
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M78 52h30v58H78z" fill="#2b2f36" />
+    <path d="M78 104h64v14H78z" fill="#2b2f36" />
+    <path d="M82 56h22v50H82z" fill="#000000" opacity="0.35" />
+    <g stroke="#3a4048" stroke-width="6">
+      <path d="M74 52v66" />
+      <path d="M74 118h70" />
+      <path d="M100 86h44" />
+      <path d="M144 86v-9" />
+      <path d="M144 118l22 16" />
     </g>
-
-    <!-- front caster -->
-    <circle cx="176" cy="152" r="12" fill="#ffffff" />
-    <path d="M176 140v-8" stroke-width="5" />
+    <path d="M100 84h44" stroke="#2b2f36" stroke-width="9" />
+    <circle cx="146" cy="72" r="6" fill="#ffd100" stroke="#1b1f24" stroke-width="3" />
+    <path d="M146 78v6" stroke="#1b1f24" stroke-width="4" />
+    <rect x="92" y="120" width="48" height="20" rx="4" fill="#3a4048" />
+    <path d="M160 132l18 6" stroke="#3a4048" stroke-width="6" />
+    <path d="M96 140h34" stroke="#ffd100" stroke-width="4" />
+    <circle cx="96" cy="150" r="27" fill="#1b1f24" />
+    <circle cx="96" cy="150" r="12" fill="#3a4048" />
+    <circle cx="96" cy="150" r="4" fill="#1b1f24" />
+    <g stroke="#3a4048" stroke-width="3">
+      <path d="M96 124v14" />
+      <path d="M96 162v14" />
+      <path d="M72 150h12" />
+      <path d="M108 150h12" />
+    </g>
+    <circle cx="178" cy="156" r="12" fill="#1b1f24" />
+    <circle cx="178" cy="156" r="4" fill="#3a4048" />
+    <path d="M178 144v-8" stroke="#3a4048" stroke-width="5" />
   </g>
-
-  <circle cx="98" cy="146" r="9" fill="#0a6957" />
-  <circle cx="176" cy="152" r="4" fill="#0a6957" />
 </svg>

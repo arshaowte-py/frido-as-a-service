@@ -85,7 +85,7 @@ export default function Wrap() {
       <div className="space-y-5 p-5 rise">
         <div className="pt-6 text-center">
           <div className="mx-auto grid size-14 place-items-center rounded-full bg-brand-100">
-            <svg viewBox="0 0 24 24" className="size-7 text-brand-600" fill="none" aria-hidden>
+            <svg viewBox="0 0 24 24" className="size-7 text-sky-700" fill="none" aria-hidden>
               <path
                 d="m5 13 4 4L19 7"
                 stroke="currentColor"
@@ -105,9 +105,9 @@ export default function Wrap() {
         </div>
 
         {offer && (
-          <Card className="overflow-hidden ring-accent-500/30">
-            <div className="bg-accent-100 px-4 py-3">
-              <p className="text-xs font-bold uppercase tracking-wide text-accent-700">
+          <Card className="overflow-hidden ring-clay-500/30">
+            <div className="bg-clay-100 px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-wide text-clay-700">
                 In-mall offer · expires in 7 days
               </p>
             </div>
@@ -132,11 +132,11 @@ export default function Wrap() {
                   )}
                 </div>
               </div>
-              <div className="mt-4 rounded-xl border border-dashed border-accent-500 bg-accent-100/50 px-4 py-3 text-center">
-                <p className="font-mono text-2xl font-black tracking-widest text-accent-700">
+              <div className="mt-4 rounded-xl border border-dashed border-clay-500 bg-clay-100/50 px-4 py-3 text-center">
+                <p className="font-mono text-2xl font-black tracking-widest text-clay-700">
                   {offer.code}
                 </p>
-                <p className="mt-1 text-xs text-accent-700">
+                <p className="mt-1 text-xs text-clay-700">
                   {offer.redeemedAt ? 'Already used — enjoy it.' : 'Show this at the Frido counter'}
                 </p>
               </div>
@@ -173,7 +173,7 @@ export default function Wrap() {
                     onClick={() => setRating(value)}
                     className={cx(
                       'grid h-12 flex-1 place-items-center rounded-xl text-2xl transition',
-                      value <= rating ? 'bg-accent-100' : 'bg-ink-50 hover:bg-ink-100',
+                      value <= rating ? 'bg-clay-100' : 'bg-ink-50 hover:bg-ink-100',
                     )}
                   >
                     <span className={value <= rating ? 'opacity-100' : 'opacity-25'}>★</span>
@@ -192,7 +192,7 @@ export default function Wrap() {
                     className={cx(
                       'rounded-xl px-3 py-2.5 text-left text-sm font-medium ring-1 transition',
                       intent === option.value
-                        ? 'bg-brand-50 text-brand-700 ring-2 ring-brand-500'
+                        ? 'bg-brand-50 text-sky-700 ring-2 ring-brand-500'
                         : 'bg-white text-ink-700 ring-ink-200 hover:bg-ink-50',
                     )}
                   >

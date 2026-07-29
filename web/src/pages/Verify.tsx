@@ -150,7 +150,7 @@ export default function Verify() {
             </Field>
 
             {challenge?.devCode && (
-              <Card className="bg-accent-100 p-3 text-xs text-accent-700 ring-accent-500/30">
+              <Card className="bg-clay-100 p-3 text-xs text-clay-700 ring-clay-500/30">
                 <strong>Demo mode.</strong> No SMS was sent — the code is{' '}
                 <span className="font-mono font-bold">{challenge.devCode}</span> and has been
                 filled in for you. Switch <code>DEV_OTP_ECHO</code> off to use a real gateway.
@@ -179,7 +179,7 @@ export default function Verify() {
                 type="button"
                 disabled={secondsLeft > 0}
                 onClick={() => requestCode()}
-                className="font-semibold text-brand-600 disabled:text-ink-400"
+                className="font-semibold text-sky-700 disabled:text-ink-400"
               >
                 {secondsLeft > 0 ? `Resend in ${secondsLeft}s` : 'Resend code'}
               </button>

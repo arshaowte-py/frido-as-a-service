@@ -71,7 +71,7 @@ export default function Overview() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
         <Stat label="Out now" value={data.fleet.inUse} />
-        <Stat label="Available" value={data.fleet.available} tone="text-brand-600" />
+        <Stat label="Available" value={data.fleet.available} tone="text-sky-700" />
         <Stat
           label="Overdue"
           value={data.overdueCount}
@@ -79,7 +79,7 @@ export default function Overview() {
         />
         <Stat label="Awaiting pickup" value={data.awaitingHandover} />
         <Stat label="Sessions today" value={data.today.sessions} />
-        <Stat label="New leads today" value={data.today.newLeads} tone="text-brand-600" />
+        <Stat label="New leads today" value={data.today.newLeads} tone="text-sky-700" />
       </div>
 
       {error && <Alert>{error}</Alert>}

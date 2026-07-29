@@ -31,57 +31,87 @@ const PRODUCTS = [
     id: 'prod_autofold_stroller',
     slug: 'frido-autofold-travel-stroller',
     category: 'stroller',
+    unit_prefix: 'STR',
     name: 'Frido Autofold Travel Stroller',
     tagline: 'One-hand autofold. Cabin-friendly. Built for long mall days.',
     product_url: 'https://myfrido.com/products/frido-autofold-travel-stroller',
     image_url: '/images/stroller.svg',
+    fleet_per_store: 3,
     mrp_paise: 2499900,
     price_paise: 1699900,
     features: [
       'One-hand automatic fold, stands on its own',
-      'Suits roughly 6 months to 3 years',
+      'Vegan-leather handle, large UV-block canopy',
       'Reclining seat with a 5-point harness',
       'Shock-absorbing wheels for mall flooring',
-      'Under 8 kg — easy to lift into a car boot',
+      'Suits roughly 6 months to 3 years',
     ],
     deposit_note: 'Any photo ID held at the counter, returned when you bring the stroller back.',
   },
   {
-    id: 'prod_prime_plus_wheelchair',
-    slug: 'frido-prime-plus-electric-wheelchair',
+    id: 'prod_prime_wheelchair',
+    slug: 'frido-prime-electric-wheelchair-el-fnn02',
     category: 'wheelchair',
-    name: 'Frido Prime Plus Electric Wheelchair',
+    unit_prefix: 'PRM',
+    name: 'Frido Prime Electric Wheelchair',
     tagline: 'Motorised independence. Joystick control, folds into a boot.',
-    product_url: 'https://mobility.myfrido.com/products/frido-prime-plus-electric-wheelchair',
+    product_url: 'https://mobility.myfrido.com/products/frido-prime-electric-wheelchair-el-fnn02',
     image_url: '/images/wheelchair.svg',
+    fleet_per_store: 2,
     mrp_paise: 14999900,
     price_paise: 10999900,
     features: [
-      'Dual brushless motors with joystick control',
+      'Dual brushless motors, joystick control',
       'Folds down for car boots and cabs',
-      'Comfortable for a full day out',
+      'Lightweight — easy for one person to lift',
       'Anti-tip wheels and electromagnetic brakes',
-      'Supports up to 120 kg',
+      'Comfortable for a full day out',
     ],
     deposit_note:
       'Any photo ID held at the counter. A staff member walks you through the controls first.',
   },
+  {
+    id: 'prod_heavy_duty_recliner',
+    slug: 'frido-heavy-duty-recliner-wheelchair',
+    category: 'wheelchair',
+    unit_prefix: 'HDR',
+    name: 'Frido Heavy Duty Recliner Wheelchair',
+    tagline: 'Full-recline comfort with elevating leg rests, for longer visits.',
+    product_url: 'https://mobility.myfrido.com/products/frido-heavy-duty-recliner-wheelchair',
+    image_url: null, // uses the in-app illustration until a PDP photo is dropped in
+    fleet_per_store: 1,
+    mrp_paise: 3499900,
+    price_paise: 2599900,
+    features: [
+      'Reclining backrest with a padded headrest',
+      'Elevating, cushioned leg rests',
+      'High weight capacity for heavier users',
+      'Joystick control with attendant override',
+      'Extra padding for long sittings',
+    ],
+    deposit_note:
+      'Any photo ID held at the counter. Best for guests who need recline or leg support.',
+  },
 ];
 
-// [mallId, mallName, city, address, storeId, storeCode, floor, unitNo]
+// The 13 live Frido mall stores.
+// [mallId, mallName, city, address, storeId, storeCode, floor, unitNo, lat, lng]
+// ⚠️ Coordinates are approximate mall pins — replace with the exact store location from
+// Google Business before geofenced features (return nudges, "nearest store") go live.
 const MALLS = [
-  ['mall_phoenix_palladium', 'Phoenix Palladium', 'Mumbai', 'Lower Parel, Mumbai', 'st_phx_mum', 'PHXM', 'Level 2', 'L2-14'],
-  ['mall_phoenix_marketcity_pune', 'Phoenix Marketcity', 'Pune', 'Viman Nagar, Pune', 'st_phx_pun', 'PHXP', 'Level 1', 'F1-22'],
-  ['mall_seasons', 'Seasons Mall', 'Pune', 'Magarpatta, Pune', 'st_sea_pun', 'SEAP', 'Ground', 'G-08'],
-  ['mall_amanora', 'Amanora Mall', 'Pune', 'Hadapsar, Pune', 'st_ama_pun', 'AMAP', 'Level 1', 'F1-40'],
-  ['mall_orion', 'Orion Mall', 'Bengaluru', 'Rajajinagar, Bengaluru', 'st_ori_blr', 'ORIB', 'Level 2', 'L2-31'],
-  ['mall_phoenix_asia', 'Phoenix Mall of Asia', 'Bengaluru', 'Hebbal, Bengaluru', 'st_moa_blr', 'MOAB', 'Level 1', 'F1-11'],
-  ['mall_ambience', 'Ambience Mall', 'Gurugram', 'NH-8, Gurugram', 'st_amb_ggn', 'AMBG', 'Ground', 'G-56'],
-  ['mall_dlf_moi', 'DLF Mall of India', 'Noida', 'Sector 18, Noida', 'st_dlf_noi', 'DLFN', 'Level 3', 'L3-07'],
-  ['mall_inorbit_hyd', 'Inorbit Mall', 'Hyderabad', 'Madhapur, Hyderabad', 'st_ino_hyd', 'INOH', 'Level 1', 'F1-18'],
-  ['mall_lulu_kochi', 'Lulu Mall', 'Kochi', 'Edappally, Kochi', 'st_lul_koc', 'LULK', 'Ground', 'G-102'],
-  ['mall_vr_chennai', 'VR Chennai', 'Chennai', 'Anna Nagar, Chennai', 'st_vrc_maa', 'VRCH', 'Level 2', 'L2-25'],
-  ['mall_elante', 'Elante Mall', 'Chandigarh', 'Industrial Area Phase 1, Chandigarh', 'st_ela_chd', 'ELAC', 'Ground', 'G-19'],
+  ['mall_pmc_viman', 'Phoenix Marketcity', 'Pune', 'Viman Nagar, Pune', 'st_pmc_viman', 'PMCP', 'Level 1', 'F1-22', 18.5619, 73.9169],
+  ['mall_amanora', 'Amanora Mall', 'Pune', 'Magarpatta, Pune', 'st_amanora', 'AMNP', 'Level 1', 'F1-40', 18.5169, 73.9339],
+  ['mall_elpro', 'Elpro City Square', 'Pune', 'PCMC, Pune', 'st_elpro', 'ELPP', 'Ground', 'G-14', 18.6298, 73.8009],
+  ['mall_nexus_westend', 'Nexus Westend', 'Pune', 'Aundh, Pune', 'st_nexus_westend', 'NXWP', 'Level 2', 'L2-06', 18.5626, 73.8100],
+  ['mall_kopa', 'Kopa Mall', 'Pune', 'Ghorpadi, Koregaon Park, Pune', 'st_kopa', 'KOPP', 'Ground', 'G-03', 18.5389, 73.8969],
+  ['mall_moa_blr', 'Phoenix Mall of Asia', 'Bengaluru', 'Hebbal, Bengaluru', 'st_moa_blr', 'MOAB', 'Level 1', 'F1-11', 13.0470, 77.5960],
+  ['mall_lakeshore_hyd', 'Lakeshore', 'Hyderabad', 'Y Junction, Hyderabad', 'st_lakeshore', 'LAKH', 'Level 1', 'F1-09', 17.4620, 78.3660],
+  ['mall_skycity', 'Sky City Mall', 'Mumbai', 'Borivali, Mumbai', 'st_skycity', 'SKYM', 'Level 2', 'L2-18', 19.2288, 72.8570],
+  ['mall_dlf_summit', 'DLF Summit', 'Gurugram', 'DLF, Gurugram', 'st_dlf_summit', 'DLFG', 'Ground', 'G-21', 28.4949, 77.0880],
+  ['mall_bhartiya', 'Bhartiya Mall', 'Bengaluru', 'Thanisandra, Bengaluru', 'st_bhartiya', 'BHRB', 'Level 1', 'F1-15', 13.0700, 77.6300],
+  ['mall_vegas', 'Vegas Mall', 'Delhi', 'Dwarka, New Delhi', 'st_vegas', 'VEGD', 'Level 1', 'F1-30', 28.5920, 77.0460],
+  ['mall_lulu_blr', 'Lulu Mall', 'Bengaluru', 'Rajajinagar, Bengaluru', 'st_lulu_blr', 'LULB', 'Ground', 'G-40', 13.0060, 77.5560],
+  ['mall_pmc_whitefield', 'Phoenix Marketcity', 'Bengaluru', 'Whitefield, Bengaluru', 'st_pmc_whitefield', 'PMCW', 'Level 2', 'L2-25', 12.9960, 77.6970],
 ];
 
 const FIRST_NAMES = [
@@ -158,7 +188,7 @@ export async function seedDatabase({ reset = false, historyDays = 30, atomic = f
     ]);
 
   const products = PRODUCTS.map((p) => [
-    p.id, p.slug, p.category, p.name, p.tagline, p.product_url, p.image_url,
+    p.id, p.slug, p.category, p.unit_prefix, p.name, p.tagline, p.product_url, p.image_url,
     p.mrp_paise, p.price_paise, JSON.stringify(p.features), p.deposit_note,
   ]);
 
@@ -166,20 +196,20 @@ export async function seedDatabase({ reset = false, historyDays = 30, atomic = f
   const unitsByStore = new Map();
   const cityByStore = new Map();
 
-  MALLS.forEach(([mallId, mallName, city, address, storeId, storeCode, floor, unitNo], index) => {
+  MALLS.forEach(
+    ([mallId, mallName, city, address, storeId, storeCode, floor, unitNo, lat, lng], index) => {
     malls.push([mallId, mallName, city, address, nowIso()]);
     stores.push([
       storeId, mallId, storeCode, `Frido ${mallName}`, floor, unitNo,
-      `98${between(10000000, 99999999)}`, nowIso(),
+      `98${between(10000000, 99999999)}`, lat, lng, 150, nowIso(),
     ]);
     storeIds.push(storeId);
     cityByStore.set(storeId, city);
     unitsByStore.set(storeId, []);
 
     for (const product of PRODUCTS) {
-      const count = product.category === 'stroller' ? 4 : 3;
-      const prefix = product.category === 'stroller' ? 'STR' : 'WCH';
-      for (let i = 1; i <= count; i += 1) {
+      const prefix = product.unit_prefix;
+      for (let i = 1; i <= product.fleet_per_store; i += 1) {
         const unitId = id();
         units.push([
           unitId,
@@ -371,14 +401,15 @@ export async function seedDatabase({ reset = false, historyDays = 30, atomic = f
   const writeAll = async (execute) => {
     await bulkInsert(
       'products',
-      ['id', 'slug', 'category', 'name', 'tagline', 'product_url', 'image_url', 'mrp_paise',
-        'price_paise', 'features_json', 'deposit_note'],
+      ['id', 'slug', 'category', 'unit_prefix', 'name', 'tagline', 'product_url', 'image_url',
+        'mrp_paise', 'price_paise', 'features_json', 'deposit_note'],
       products, execute,
     );
     await bulkInsert('malls', ['id', 'name', 'city', 'address', 'created_at'], malls, execute);
     await bulkInsert(
       'stores',
-      ['id', 'mall_id', 'code', 'name', 'floor', 'unit_no', 'phone', 'created_at'],
+      ['id', 'mall_id', 'code', 'name', 'floor', 'unit_no', 'phone', 'lat', 'lng',
+        'geofence_radius_m', 'created_at'],
       stores, execute,
     );
     await bulkInsert(

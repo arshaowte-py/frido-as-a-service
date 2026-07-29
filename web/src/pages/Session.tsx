@@ -98,7 +98,7 @@ export default function Session() {
         <div className="space-y-5 p-5 rise">
           <Card className="p-6 text-center">
             <p className="text-sm font-semibold text-ink-500">Show this code to the Frido team</p>
-            <p className="mt-3 font-mono text-5xl font-black tracking-[0.2em] text-brand-600">
+            <p className="mt-3 font-mono text-5xl font-black tracking-[0.2em] text-sky-700">
               {session.unlockCode}
             </p>
             <p className="mt-3 text-xs text-ink-400">
@@ -256,7 +256,7 @@ export default function Session() {
           {store?.phone && (
             <a
               href={`tel:${store.phone}`}
-              className="mt-3 inline-block text-sm font-semibold text-brand-600"
+              className="mt-3 inline-block text-sm font-semibold text-sky-700"
             >
               Call the store for help →
             </a>

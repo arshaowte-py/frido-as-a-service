@@ -126,10 +126,10 @@ export default function Profile() {
 
       <form onSubmit={submit} className="space-y-5 p-5 rise">
         <Card className="bg-brand-50 p-4 ring-brand-300/40">
-          <p className="text-sm font-semibold text-brand-700">
+          <p className="text-sm font-semibold text-sky-700">
             {context ? context.product.name : 'Your Frido borrow'} · ₹0
           </p>
-          <p className="mt-0.5 text-xs text-brand-600">
+          <p className="mt-0.5 text-xs text-sky-700">
             We ask this so the store team knows who has the unit, and so we only follow up
             with something actually useful to you.
           </p>
@@ -184,7 +184,7 @@ export default function Profile() {
             type="checkbox"
             checked={whatsapp}
             onChange={(event) => setWhatsapp(event.target.checked)}
-            className="mt-0.5 size-5 rounded accent-[var(--color-brand-600)]"
+            className="mt-0.5 size-5 rounded accent-[var(--color-ink-900)]"
           />
           <span className="text-sm text-ink-700">
             Send my return reminder and offer code on WhatsApp

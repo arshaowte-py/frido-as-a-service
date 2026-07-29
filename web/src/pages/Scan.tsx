@@ -82,10 +82,10 @@ export default function Scan() {
             </div>
           </div>
           <div className="border-t border-ink-200/70 bg-brand-50 px-4 py-3">
-            <p className="text-sm font-bold text-brand-700">
+            <p className="text-sm font-bold text-sky-700">
               ₹0 for {hours} hours inside the mall
             </p>
-            <p className="mt-0.5 text-xs text-brand-600">
+            <p className="mt-0.5 text-xs text-sky-700">
               Extend by {policy.extensionMinutes} minutes, up to {policy.maxExtensions} times.
             </p>
           </div>
@@ -134,7 +134,7 @@ export default function Scan() {
             ))}
             <Link
               to={`/store/${store.id}`}
-              className="block text-center text-sm font-semibold text-brand-600"
+              className="block text-center text-sm font-semibold text-sky-700"
             >
               See everything free at this store
             </Link>
@@ -146,7 +146,7 @@ export default function Scan() {
           <ul className="mt-2 space-y-2">
             {product.features.map((feature) => (
               <li key={feature} className="flex gap-2 text-sm text-ink-500">
-                <svg viewBox="0 0 20 20" className="mt-0.5 size-4 shrink-0 text-brand-500" fill="currentColor" aria-hidden>
+                <svg viewBox="0 0 20 20" className="mt-0.5 size-4 shrink-0 text-sky-600" fill="currentColor" aria-hidden>
                   <path
                     fillRule="evenodd"
                     d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.8 3.8 6.8-6.8a1 1 0 0 1 1.4 0Z"
@@ -162,7 +162,7 @@ export default function Scan() {
               href={product.productUrl}
               target="_blank"
               rel="noreferrer"
-              className="mt-3 inline-block text-sm font-semibold text-brand-600"
+              className="mt-3 inline-block text-sm font-semibold text-sky-700"
             >
               See the full product page →
             </a>

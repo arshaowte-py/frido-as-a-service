@@ -32,6 +32,9 @@ export interface Store {
   floor: string | null;
   unitNo: string | null;
   phone: string | null;
+  lat: number | null;
+  lng: number | null;
+  geofenceRadiusM: number | null;
   opensAt: string;
   closesAt: string;
   mall: Mall | null;

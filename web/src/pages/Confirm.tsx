@@ -99,7 +99,7 @@ export default function Confirm() {
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-ink-900">{context.product.name}</h2>
             <p className="text-xs text-ink-400">Unit {context.unit.code}</p>
-            <p className="mt-1.5 text-sm font-bold text-brand-600">₹0 for {hours} hours</p>
+            <p className="mt-1.5 text-sm font-bold text-sky-700">₹0 for {hours} hours</p>
           </div>
         </Card>
 
@@ -138,7 +138,7 @@ export default function Confirm() {
             type="checkbox"
             checked={accepted}
             onChange={(event) => setAccepted(event.target.checked)}
-            className="mt-0.5 size-5 rounded accent-[var(--color-brand-600)]"
+            className="mt-0.5 size-5 rounded accent-[var(--color-ink-900)]"
           />
           <span className="text-sm text-ink-700">I've read the terms and I'll bring it back.</span>
         </label>

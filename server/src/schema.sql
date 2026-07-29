@@ -24,6 +24,12 @@ CREATE TABLE IF NOT EXISTS stores (
   floor       TEXT,
   unit_no     TEXT,
   phone       TEXT,
+  -- Store pin, for location tagging. A scan already tells us which store (the QR is
+  -- store-specific); lat/lng power the "nearest store" list, geofenced return reminders,
+  -- and per-location analytics. geofence_radius_m is the "inside this mall" boundary.
+  lat               REAL,
+  lng               REAL,
+  geofence_radius_m INTEGER NOT NULL DEFAULT 150,
   opens_at    TEXT NOT NULL DEFAULT '10:00',
   closes_at   TEXT NOT NULL DEFAULT '22:00',
   is_active   INTEGER NOT NULL DEFAULT 1,
@@ -35,6 +41,9 @@ CREATE TABLE IF NOT EXISTS products (
   id            TEXT PRIMARY KEY,
   slug          TEXT NOT NULL UNIQUE,
   category      TEXT NOT NULL CHECK (category IN ('stroller', 'wheelchair')),
+  -- 3-letter code stamped into unit labels (STR / PRM / HDR). Per-product, not
+  -- per-category, so two wheelchair SKUs in one store don't collide on unit codes.
+  unit_prefix   TEXT NOT NULL DEFAULT 'UNT',
   name          TEXT NOT NULL,
   tagline       TEXT,
   product_url   TEXT,

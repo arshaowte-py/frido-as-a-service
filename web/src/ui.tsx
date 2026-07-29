@@ -14,10 +14,11 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const BUTTON_VARIANTS: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700 focus-visible:outline-brand-600',
+  // Frido yellow with near-black text — the signature CTA.
+  primary: 'bg-brand-500 text-ink-900 hover:bg-brand-600 focus-visible:outline-brand-600',
   secondary: 'bg-white text-ink-900 ring-1 ring-ink-200 hover:bg-ink-50 focus-visible:outline-ink-400',
   ghost: 'text-ink-500 hover:bg-ink-100 hover:text-ink-900 focus-visible:outline-ink-400',
-  danger: 'bg-red-600 text-white hover:bg-red-700 focus-visible:outline-red-600',
+  danger: 'bg-coral-600 text-white hover:bg-coral-700 focus-visible:outline-coral-600',
 };
 
 const BUTTON_SIZES: Record<NonNullable<ButtonProps['size']>, string> = {
@@ -125,7 +126,7 @@ export function Field({ label, hint, error, children, required, group }: FieldPr
 export const inputClass =
   'w-full rounded-xl border-0 bg-ink-50 px-3.5 py-3 text-base text-ink-900 ring-1 ring-inset ' +
   'ring-ink-200 outline-none transition placeholder:text-ink-400 focus:bg-white ' +
-  'focus:ring-2 focus:ring-brand-500';
+  'focus:ring-2 focus:ring-sky-500';
 
 export const Input = (props: ComponentPropsWithRef<'input'>) => (
   <input {...props} className={cx(inputClass, props.className)} />
@@ -159,7 +160,7 @@ export function Choice<T extends string>({
             className={cx(
               'rounded-xl px-3 py-3 text-left text-sm font-medium ring-1 transition',
               selected
-                ? 'bg-brand-50 text-brand-700 ring-2 ring-brand-500'
+                ? 'bg-brand-50 text-ink-900 ring-2 ring-brand-500'
                 : 'bg-white text-ink-700 ring-ink-200 hover:bg-ink-50',
             )}
           >
@@ -175,11 +176,11 @@ export function Choice<T extends string>({
 }
 
 const TONES = {
-  brand: 'bg-brand-100 text-brand-700',
-  amber: 'bg-accent-100 text-accent-700',
-  red: 'bg-red-100 text-red-700',
+  brand: 'bg-brand-100 text-ink-900',
+  amber: 'bg-clay-100 text-clay-700',
+  red: 'bg-coral-100 text-coral-700',
   slate: 'bg-ink-100 text-ink-700',
-  green: 'bg-emerald-100 text-emerald-700',
+  green: 'bg-mint-100 text-mint-700',
 } as const;
 
 export const Pill = ({
@@ -208,7 +209,7 @@ export function Alert({ children, tone = 'red' }: { children: ReactNode; tone?: 
       role="alert"
       className={cx(
         'rounded-xl px-3.5 py-3 text-sm font-medium',
-        tone === 'red' ? 'bg-red-50 text-red-700' : 'bg-accent-100 text-accent-700',
+        tone === 'red' ? 'bg-coral-50 text-coral-700' : 'bg-clay-100 text-clay-700',
       )}
     >
       {children}
@@ -272,13 +273,20 @@ export function TopBar({
   );
 }
 
-export const Logo = ({ className }: { className?: string }) => (
-  <span className={cx('inline-flex items-center gap-2', className)}>
-    <span className="grid size-8 place-items-center rounded-xl bg-brand-600 text-sm font-black text-white">
-      f
+/**
+ * Frido wordmark + the "assist" sub-brand. Frido's own logo is the lowercase "frido"
+ * set in Gilroy; this echoes it (black wordmark, signature-yellow accent) without
+ * reproducing the exact logotype. Drop the real logo SVG in and swap this if wanted.
+ * `onDark` flips it for the near-black staff header / footers.
+ */
+export const Logo = ({ className, onDark = false }: { className?: string; onDark?: boolean }) => (
+  <span className={cx('inline-flex items-baseline gap-1', className)}>
+    <span className={cx('text-lg font-black lowercase tracking-tight', onDark ? 'text-white' : 'text-ink-900')}>
+      frido
     </span>
-    <span className="text-base font-black tracking-tight text-ink-900">
-      frido<span className="text-brand-600">assist</span>
+    <span className="mb-0.5 inline-block size-1.5 self-end rounded-full bg-brand-500" aria-hidden />
+    <span className={cx('text-lg font-semibold lowercase tracking-tight', onDark ? 'text-brand-500' : 'text-ink-400')}>
+      assist
     </span>
   </span>
 );

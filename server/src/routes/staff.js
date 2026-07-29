@@ -222,7 +222,7 @@ staffRouter.post('/units', requireRole('store_lead', 'admin'), async (req, res) 
   const productRow = await get('SELECT * FROM products WHERE id = ?', body.productId);
   if (!storeRow || !productRow) throw notFound('unknown_target', 'Unknown store or product.');
 
-  const prefix = productRow.category === 'stroller' ? 'STR' : 'WCH';
+  const prefix = productRow.unit_prefix ?? 'UNT';
   const created = [];
   for (let i = 0; i < body.count; i += 1) {
     const seqRow = await get(

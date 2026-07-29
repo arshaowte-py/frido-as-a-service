@@ -4,16 +4,24 @@ import { cx } from './ui';
 /**
  * Product artwork.
  *
- * These are hand-drawn vectors standing in for real photography — myfrido.com blocks
- * automated fetches, so the shots could not be pulled in. To swap in the real ones:
+ * These are hand-drawn vectors modelled on the real Frido products (charcoal + champagne
+ * Autofold stroller; black Prime electric wheelchair). They stand in for photography —
+ * myfrido.com blocks automated fetches, so the actual PDP shots could not be pulled in.
  *
- *   1. drop the files in web/public/images/ (e.g. stroller.jpg, wheelchair.jpg)
- *   2. set `image_url` on each product in server/src/seed.js to '/images/stroller.jpg'
- *   3. nothing else changes — <ProductArt> renders `src` when a product carries one
+ * To drop in the real photos — the intended final state:
+ *   1. save them in web/public/images/ (e.g. autofold-stroller.png, prime-wheelchair.png)
+ *   2. set `image_url` on each product in server/src/seed.js to that path
+ *   3. nothing else changes — <ProductArt> renders `src` whenever a product carries one,
+ *      and only falls back to the drawing when it does not.
  *
- * Drawn side-on, facing right, on a soft backdrop so a card reads as a product tile
- * rather than an icon.
+ * Material colours below are literal product colours, not brand tokens, so the drawing
+ * reads as the real object. The tile backdrop uses brand tokens.
  */
+
+const FRAME = '#c9a36a'; // champagne / rose-gold stroller frame
+const CHARCOAL = '#2b2f36'; // seat + canopy fabric
+const TYRE = '#1b1f24';
+const STEEL = '#3a4048'; // wheelchair frame
 
 interface Props {
   category: Category;
@@ -26,19 +34,13 @@ interface Props {
 }
 
 export function ProductArt({ category, src, alt, className, variant = 'tile' }: Props) {
+  const label = alt ?? (category === 'wheelchair' ? 'Frido electric wheelchair' : 'Frido travel stroller');
+
   if (src) {
-    return (
-      <img
-        src={src}
-        alt={alt ?? (category === 'wheelchair' ? 'Electric wheelchair' : 'Travel stroller')}
-        className={cx('object-contain', className)}
-        loading="lazy"
-      />
-    );
+    return <img src={src} alt={label} className={cx('object-contain', className)} loading="lazy" />;
   }
 
   const withBackdrop = variant === 'tile';
-  const label = alt ?? (category === 'wheelchair' ? 'Frido electric wheelchair' : 'Frido travel stroller');
   const gradientId = `art-bg-${category}`;
 
   return (
@@ -47,105 +49,113 @@ export function ProductArt({ category, src, alt, className, variant = 'tile' }: 
         <>
           <defs>
             <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="var(--color-brand-50)" />
-              <stop offset="100%" stopColor="var(--color-brand-100)" />
+              <stop offset="0%" stopColor="var(--color-ink-50)" />
+              <stop offset="100%" stopColor="var(--color-brand-50)" />
             </linearGradient>
           </defs>
           <rect width="240" height="200" rx="20" fill={`url(#${gradientId})`} />
-          <ellipse cx="122" cy="176" rx="78" ry="9" fill="var(--color-brand-300)" opacity="0.45" />
+          <ellipse cx="122" cy="178" rx="82" ry="9" fill="var(--color-ink-900)" opacity="0.06" />
         </>
       )}
-
-      <g
-        fill="none"
-        stroke="var(--color-brand-700)"
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        {category === 'wheelchair' ? <WheelchairPaths /> : <StrollerPaths />}
-      </g>
+      {category === 'wheelchair' ? <Wheelchair /> : <Stroller />}
     </svg>
   );
 }
 
-/** Travel stroller: reclined seat, folding hood, four wheels, under-basket. */
-function StrollerPaths() {
+/** Frido Autofold: dark canopy + seat on a champagne frame, twin front wheels. */
+function Stroller() {
+  const s = {
+    fill: 'none' as const,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
   return (
-    <>
-      {/* hood */}
-      <path
-        d="M64 92c0-26 15-44 38-44 9 0 17 3 23 8l-14 36z"
-        fill="var(--color-brand-500)"
-        stroke="var(--color-brand-700)"
-      />
-      <path d="M74 70c8-9 18-13 29-12" strokeWidth="4" opacity="0.55" stroke="white" />
+    <g {...s}>
+      {/* champagne frame */}
+      <g stroke={FRAME} strokeWidth="7">
+        <path d="M70 96 52 60" /> {/* push handle */}
+        <path d="M70 96h72" /> {/* seat rail */}
+        <path d="M142 96 168 60" /> {/* front upright to canopy */}
+        <path d="M78 98 66 158" /> {/* rear leg */}
+        <path d="M150 96 150 150" /> {/* front leg */}
+        <path d="M92 150h60" /> {/* lower cross brace */}
+      </g>
 
-      {/* seat back and base */}
-      <path d="M64 92h58" />
-      <path d="M122 92l16 34H86" fill="var(--color-brand-100)" />
+      {/* dark reclined seat + canopy */}
+      <path d="M74 96c0-30 16-52 44-52 12 0 22 4 30 12l-20 40z" fill={CHARCOAL} />
+      <path d="M74 98h64l-8 34H92z" fill={CHARCOAL} />
+      <path d="M84 60c8-8 18-12 30-11" stroke="#ffffff" strokeWidth="3" opacity="0.25" />
 
-      {/* handle */}
-      <path d="M64 92 46 58" />
-      <path d="M38 52h18" />
+      {/* Frido-yellow canopy trim */}
+      <path d="M77 84c2-18 12-31 28-35" stroke="var(--color-brand-500)" strokeWidth="4" />
 
-      {/* footrest */}
-      <path d="M138 126l22 6" />
+      {/* handle grip */}
+      <path d="M46 56h14" stroke={CHARCOAL} strokeWidth="8" />
 
-      {/* under-basket */}
-      <path d="M92 140h44a6 6 0 0 0 0-12H92a6 6 0 0 0 0 12z" fill="var(--color-brand-100)" strokeWidth="5" />
-
-      {/* frame legs */}
-      <path d="M86 126 74 158" />
-      <path d="M138 126l18 26" />
-
-      {/* wheels */}
-      <circle cx="70" cy="160" r="17" fill="white" />
-      <circle cx="70" cy="160" r="5" fill="var(--color-brand-700)" stroke="none" />
-      <circle cx="160" cy="158" r="12" fill="white" />
-      <circle cx="160" cy="158" r="4" fill="var(--color-brand-700)" stroke="none" />
-    </>
+      {/* wheels: twin front + rear, gold hubs */}
+      <circle cx="63" cy="164" r="15" fill={TYRE} />
+      <circle cx="63" cy="164" r="5" fill={FRAME} stroke="none" />
+      <circle cx="150" cy="160" r="16" fill={TYRE} />
+      <circle cx="150" cy="160" r="5.5" fill={FRAME} stroke="none" />
+      <circle cx="172" cy="162" r="12" fill={TYRE} />
+      <circle cx="172" cy="162" r="4" fill={FRAME} stroke="none" />
+    </g>
   );
 }
 
-/** Electric wheelchair: driven rear wheel, joystick on the armrest, battery under the seat. */
-function WheelchairPaths() {
+/** Frido Prime: black electric wheelchair, joystick on the armrest, big drive wheel. */
+function Wheelchair() {
+  const s = {
+    fill: 'none' as const,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+  };
   return (
-    <>
-      {/* backrest and seat */}
-      <path d="M78 112V56" />
-      <path d="M78 56h30" strokeWidth="5" />
-      <path d="M78 112h62" />
-      <path d="M78 96h58" fill="var(--color-brand-500)" stroke="none" opacity="0.18" />
-      <path d="M82 60h24v46H82z" fill="var(--color-brand-500)" stroke="none" opacity="0.9" />
+    <g {...s}>
+      {/* seat + backrest cushions */}
+      <path d="M78 52h30v58H78z" fill={CHARCOAL} />
+      <path d="M78 104h64v14H78z" fill={CHARCOAL} />
+      <path d="M82 56h22v50H82z" fill="#000000" opacity="0.35" />
 
-      {/* armrest and joystick */}
-      <path d="M100 84h44" strokeWidth="5" />
-      <path d="M144 84V74" strokeWidth="5" />
-      <circle cx="144" cy="70" r="6" fill="var(--color-accent-500)" stroke="var(--color-brand-700)" strokeWidth="4" />
+      {/* steel frame */}
+      <g stroke={STEEL} strokeWidth="6">
+        <path d="M74 52v66" />
+        <path d="M74 118h70" />
+        <path d="M100 86h44" /> {/* armrest */}
+        <path d="M144 86v-9" />
+        <path d="M144 118l22 16" /> {/* to footplate */}
+      </g>
 
-      {/* battery pack */}
-      <path d="M96 118h40a5 5 0 0 1 5 5v12a5 5 0 0 1-5 5H96a5 5 0 0 1-5-5v-12a5 5 0 0 1 5-5z" fill="var(--color-brand-100)" strokeWidth="5" />
+      {/* armrest pad + joystick */}
+      <path d="M100 84h44" stroke={CHARCOAL} strokeWidth="9" />
+      <circle cx="146" cy="72" r="6" fill="var(--color-brand-500)" stroke={TYRE} strokeWidth="3" />
+      <path d="M146 78v6" stroke={TYRE} strokeWidth="4" />
+
+      {/* battery box under seat */}
+      <rect x="92" y="120" width="48" height="20" rx="4" fill={STEEL} />
 
       {/* footplate */}
-      <path d="M140 112l24 14" />
-      <path d="M158 130l16 6" strokeWidth="5" />
+      <path d="M160 132l18 6" stroke={STEEL} strokeWidth="6" />
 
-      {/* rear drive wheel */}
-      <circle cx="98" cy="146" r="26" fill="white" />
-      <circle cx="98" cy="146" r="9" fill="var(--color-brand-700)" stroke="none" />
-      <g strokeWidth="3" opacity="0.55">
-        <path d="M98 122v14" />
-        <path d="M98 156v14" />
-        <path d="M74 146h14" />
-        <path d="M108 146h14" />
+      {/* Frido-yellow frame flash */}
+      <path d="M96 140h34" stroke="var(--color-brand-500)" strokeWidth="4" />
+
+      {/* rear drive wheel with spokes */}
+      <circle cx="96" cy="150" r="27" fill={TYRE} />
+      <circle cx="96" cy="150" r="12" fill={STEEL} stroke="none" />
+      <circle cx="96" cy="150" r="4" fill={TYRE} stroke="none" />
+      <g stroke={STEEL} strokeWidth="3" opacity="0.9">
+        <path d="M96 124v14" />
+        <path d="M96 162v14" />
+        <path d="M72 150h12" />
+        <path d="M108 150h12" />
       </g>
 
       {/* front caster */}
-      <circle cx="176" cy="152" r="12" fill="white" />
-      <circle cx="176" cy="152" r="4" fill="var(--color-brand-700)" stroke="none" />
-      <path d="M176 140v-8" strokeWidth="5" />
-    </>
+      <circle cx="178" cy="156" r="12" fill={TYRE} />
+      <circle cx="178" cy="156" r="4" fill={STEEL} stroke="none" />
+      <path d="M178 144v-8" stroke={STEEL} strokeWidth="5" />
+    </g>
   );
 }
 

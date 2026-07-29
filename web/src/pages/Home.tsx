@@ -52,7 +52,7 @@ export default function Home() {
           <Logo />
           <Link
             to="/staff/login"
-            className="text-sm font-semibold text-ink-500 hover:text-brand-600"
+            className="text-sm font-semibold text-ink-500 hover:text-sky-700"
           >
             Store team →
           </Link>
@@ -93,7 +93,7 @@ export default function Home() {
                 <div className="min-w-0">
                   <h2 className="text-sm font-bold text-ink-900">{product.name}</h2>
                   <p className="mt-1 text-xs text-ink-500">{product.tagline}</p>
-                  <p className="mt-2 text-xs font-semibold text-brand-600">
+                  <p className="mt-2 text-xs font-semibold text-sky-700">
                     Free in-mall · ₹{product.price?.toLocaleString('en-IN')} to own
                   </p>
                 </div>
@@ -121,7 +121,7 @@ export default function Home() {
             },
           ].map((item) => (
             <Card key={item.step} className="p-5">
-              <span className="text-xs font-black tracking-widest text-brand-300">{item.step}</span>
+              <span className="text-xs font-black tracking-widest text-brand-600">{item.step}</span>
               <h3 className="mt-2 text-base font-bold text-ink-900">{item.title}</h3>
               <p className="mt-1.5 text-sm text-ink-500">{item.body}</p>
             </Card>
