@@ -1,0 +1,24 @@
+{
+  "name": "frido-as-a-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Frido-as-a-Service — scan-to-borrow strollers and wheelchairs in malls. Yulu's flow, mapped to mall floors.",
+  "workspaces": [
+    "server",
+    "web"
+  ],
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:server": "npm run dev --workspace server",
+    "dev:web": "npm run dev --workspace web",
+    "seed": "npm run seed --workspace server",
+    "reset": "npm run reset --workspace server",
+    "build": "npm run build --workspace web",
+    "start": "npm run start --workspace server",
+    "smoke": "node scripts/smoke.mjs"
+  }
+}
