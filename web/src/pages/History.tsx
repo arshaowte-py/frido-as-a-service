@@ -5,6 +5,10 @@ import { Button, Card, Loading, PhoneShell, Pill, ProductArt, TopBar } from '../
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
+// The history rows are tight on a phone; the year is noise next to the mall name.
+const formatShortDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
 export default function History() {
   const navigate = useNavigate();
   const { user, sessions, offers, activeSession, loading, signOut } = useGuest();
@@ -108,7 +112,7 @@ export default function History() {
                       {session.unit?.product?.name}
                     </p>
                     <p className="truncate text-xs text-ink-400">
-                      {session.store?.mall?.name} · {formatDate(session.createdAt)}
+                      {session.store?.mall?.name} · {formatShortDate(session.createdAt)}
                       {session.durationMinutes ? ` · ${session.durationMinutes} min` : ''}
                     </p>
                   </div>
