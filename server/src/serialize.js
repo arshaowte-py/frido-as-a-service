@@ -116,6 +116,7 @@ export function offer(row) {
   return {
     id: row.id,
     code: row.code,
+    sessionId: row.session_id,
     discountPct: row.discount_pct,
     expiresAt: row.expires_at,
     redeemedAt: row.redeemed_at,

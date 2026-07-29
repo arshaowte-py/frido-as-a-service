@@ -90,6 +90,19 @@ publicRouter.get('/scan/:qrToken', optionalGuest, (req, res, next) => {
   });
 });
 
+// Same payload as /scan but without logging a scan — used by the screens that come after
+// the sticker, so a page refresh doesn't inflate the top of the funnel.
+publicRouter.get('/units/:id', (req, res, next) => {
+  const unitRow = get('SELECT * FROM units WHERE id = ?', req.params.id);
+  if (!unitRow) return next(notFound('unknown_unit', 'That unit is not registered.'));
+  res.json({
+    unit: view.unit(unitRow),
+    product: view.product(get('SELECT * FROM products WHERE id = ?', unitRow.product_id)),
+    store: view.store(get('SELECT * FROM stores WHERE id = ?', unitRow.store_id)),
+    policy: view.policy(),
+  });
+});
+
 // Standee QR at the store entrance: pick from whatever is free right now.
 publicRouter.get('/stores/:storeId/availability', (req, res, next) => {
   const storeRow = get('SELECT * FROM stores WHERE id = ?', req.params.storeId);

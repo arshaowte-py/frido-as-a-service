@@ -47,6 +47,24 @@ staffRouter.post('/login', (req, res) => {
   });
 });
 
+// Printable sticker for the physical unit. An <img> tag cannot send an Authorization
+// header, so this one route also accepts the staff token as a query parameter. It is
+// declared before the blanket requireStaff below.
+staffRouter.get('/units/:id/qr.svg', (req, res, next) => {
+  if (req.query.t && !req.get('authorization')) req.headers.authorization = `Bearer ${req.query.t}`;
+  requireStaff(req, res, next);
+}, async (req, res) => {
+  const unitRow = get('SELECT * FROM units WHERE id = ?', req.params.id);
+  if (!unitRow) throw notFound('unknown_unit', 'No such unit.');
+  const svg = await QRCode.toString(`${config.publicBaseUrl}/s/${unitRow.qr_token}`, {
+    type: 'svg',
+    margin: 1,
+    width: 320,
+    errorCorrectionLevel: 'M',
+  });
+  res.type('image/svg+xml').set('Cache-Control', 'private, max-age=3600').send(svg);
+});
+
 staffRouter.use(requireStaff);
 
 staffRouter.get('/me', (req, res) => res.json({ staff: view.staffMember(req.staff) }));
@@ -207,19 +225,6 @@ staffRouter.post('/units', requireRole('store_lead', 'admin'), async (req, res) 
     created.push(view.unit(get('SELECT * FROM units WHERE id = ?', unitId), { includeToken: true }));
   }
   res.status(201).json({ units: created });
-});
-
-// Printable sticker for the physical unit.
-staffRouter.get('/units/:id/qr.svg', async (req, res) => {
-  const unitRow = get('SELECT * FROM units WHERE id = ?', req.params.id);
-  if (!unitRow) throw notFound('unknown_unit', 'No such unit.');
-  const svg = await QRCode.toString(`${config.publicBaseUrl}/s/${unitRow.qr_token}`, {
-    type: 'svg',
-    margin: 1,
-    width: 320,
-    errorCorrectionLevel: 'M',
-  });
-  res.type('image/svg+xml').set('Cache-Control', 'public, max-age=3600').send(svg);
 });
 
 /* ---------------------------------------------------------------- session handling */
