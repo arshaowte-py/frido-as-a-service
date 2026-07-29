@@ -57,11 +57,31 @@ export const config = {
 
 export const isProduction = config.env === 'production';
 
+/**
+ * Postgres (Netlify DB) whenever a connection string is present — which is the case in
+ * every Netlify context. Everywhere else falls back to the local SQLite file, so
+ * `npm run dev` still needs no setup.
+ */
+export const usePostgres = bool(
+  process.env.USE_POSTGRES,
+  Boolean(process.env.NETLIFY_DATABASE_URL || process.env.NETLIFY),
+);
+
+/**
+ * A hosted demo has no SMS gateway, so it has to keep echoing the OTP to be usable at
+ * all. That is only acceptable because the data behind it is synthetic. Turning this on
+ * is a deliberate, separate decision from NODE_ENV — it is never implied by it.
+ */
+export const isDemo = bool(process.env.DEMO_MODE, false);
+
 if (isProduction) {
   if (config.jwtSecret === 'dev-only-insecure-secret-change-me') {
     throw new Error('JWT_SECRET must be set to a real value when NODE_ENV=production');
   }
-  if (config.otp.echo) {
-    throw new Error('DEV_OTP_ECHO must be false when NODE_ENV=production');
+  if (config.otp.echo && !isDemo) {
+    throw new Error(
+      'DEV_OTP_ECHO must be false when NODE_ENV=production, unless DEMO_MODE=true is set ' +
+        'explicitly and the data behind it is synthetic.',
+    );
   }
 }

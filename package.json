@@ -17,8 +17,14 @@
     "dev:web": "npm run dev --workspace web",
     "seed": "npm run seed --workspace server",
     "reset": "npm run reset --workspace server",
-    "build": "npm run build --workspace web",
+    "build": "npm run check:schema && npm run build --workspace web",
+    "build:netlify": "npm run check:schema && npm run build --workspace web",
+    "check:schema": "node scripts/check-schema-sync.mjs",
     "start": "npm run start --workspace server",
     "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@netlify/database": "^1.1.0",
+    "serverless-http": "^4.0.0"
   }
 }

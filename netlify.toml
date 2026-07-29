@@ -1,0 +1,34 @@
+[build]
+  command = "npm run build:netlify"
+  publish = "web/dist"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# The API is one Express app behind a single function. Declared before the SPA fallback
+# so it wins for anything under /api.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+# Client-side routing: /s/:token, /staff/leads and friends are not files on disk.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "SAMEORIGIN"
+
+# Never let a CDN or browser hold on to an API response.
+[[headers]]
+  for = "/api/*"
+  [headers.values]
+    Cache-Control = "no-store"

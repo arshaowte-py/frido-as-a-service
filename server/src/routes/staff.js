@@ -10,6 +10,7 @@ import {
   conflict,
   humanCode,
   id,
+  minutesBetween,
   normalisePhone,
   notFound,
   nowIso,
@@ -31,43 +32,47 @@ const parse = (schema, payload) => {
 
 /* -------------------------------------------------------------------------- login */
 
-staffRouter.post('/login', (req, res) => {
+staffRouter.post('/login', async (req, res) => {
   const body = parse(z.object({ phone: z.string(), pin: z.string() }), req.body);
-  const member = get(
+  const member = await get(
     'SELECT * FROM staff WHERE phone = ? AND is_active = 1',
     normalisePhone(body.phone),
   );
   if (!member || !timingSafeEqual(member.pin, body.pin)) {
     throw badRequest('bad_credentials', 'That phone and PIN combination did not work.');
   }
-  track('staff_login', { storeId: member.store_id, payload: { staffId: member.id } });
+  await track('staff_login', { storeId: member.store_id, payload: { staffId: member.id } });
   res.json({
     token: issueToken({ sub: member.id }, { audience: 'staff', ttlSeconds: 60 * 60 * 10 }),
-    staff: view.staffMember(member),
+    staff: await view.staffMember(member),
   });
 });
 
 // Printable sticker for the physical unit. An <img> tag cannot send an Authorization
 // header, so this one route also accepts the staff token as a query parameter. It is
 // declared before the blanket requireStaff below.
-staffRouter.get('/units/:id/qr.svg', (req, res, next) => {
-  if (req.query.t && !req.get('authorization')) req.headers.authorization = `Bearer ${req.query.t}`;
-  requireStaff(req, res, next);
-}, async (req, res) => {
-  const unitRow = get('SELECT * FROM units WHERE id = ?', req.params.id);
-  if (!unitRow) throw notFound('unknown_unit', 'No such unit.');
-  const svg = await QRCode.toString(`${config.publicBaseUrl}/s/${unitRow.qr_token}`, {
-    type: 'svg',
-    margin: 1,
-    width: 320,
-    errorCorrectionLevel: 'M',
-  });
-  res.type('image/svg+xml').set('Cache-Control', 'private, max-age=3600').send(svg);
-});
+staffRouter.get(
+  '/units/:id/qr.svg',
+  (req, res, next) => {
+    if (req.query.t && !req.get('authorization')) req.headers.authorization = `Bearer ${req.query.t}`;
+    requireStaff(req, res, next);
+  },
+  async (req, res) => {
+    const unitRow = await get('SELECT * FROM units WHERE id = ?', req.params.id);
+    if (!unitRow) throw notFound('unknown_unit', 'No such unit.');
+    const svg = await QRCode.toString(`${config.publicBaseUrl}/s/${unitRow.qr_token}`, {
+      type: 'svg',
+      margin: 1,
+      width: 320,
+      errorCorrectionLevel: 'M',
+    });
+    res.type('image/svg+xml').set('Cache-Control', 'private, max-age=3600').send(svg);
+  },
+);
 
 staffRouter.use(requireStaff);
 
-staffRouter.get('/me', (req, res) => res.json({ staff: view.staffMember(req.staff) }));
+staffRouter.get('/me', async (req, res) => res.json({ staff: await view.staffMember(req.staff) }));
 
 // Admins see the whole estate; everyone else is scoped to their own store.
 const scopeStoreId = (req) =>
@@ -75,46 +80,49 @@ const scopeStoreId = (req) =>
 
 /* ---------------------------------------------------------------------- live board */
 
-staffRouter.get('/overview', (req, res) => {
+staffRouter.get('/overview', async (req, res) => {
   const storeId = scopeStoreId(req);
   const scope = storeId ? 'AND s.store_id = ?' : '';
   const args = storeId ? [storeId] : [];
 
-  const liveRows = all(
+  const liveRows = await all(
     `SELECT s.* FROM borrow_sessions s
       WHERE s.status IN ('pending', 'active') ${scope}
       ORDER BY s.due_at IS NULL, s.due_at`,
     ...args,
   );
 
-  const live = liveRows.map((row) => ({
-    ...view.borrowSession(row),
-    guest: view.user(get('SELECT * FROM users WHERE id = ?', row.user_id)),
-  }));
+  const live = await Promise.all(
+    liveRows.map(async (row) => ({
+      ...(await view.borrowSession(row)),
+      guest: view.user(await get('SELECT * FROM users WHERE id = ?', row.user_id)),
+    })),
+  );
 
-  const fleet = all(
-    `SELECT status, COUNT(*) AS count FROM units
+  const fleetRows = await all(
+    `SELECT status, CAST(COUNT(*) AS INTEGER) AS count FROM units
       WHERE 1 = 1 ${storeId ? 'AND store_id = ?' : ''}
       GROUP BY status`,
     ...args,
-  ).reduce((acc, row) => ({ ...acc, [row.status]: row.count }), {});
+  );
+  const fleet = fleetRows.reduce((acc, row) => ({ ...acc, [row.status]: Number(row.count) }), {});
 
   const today = new Date().toISOString().slice(0, 10);
-  const todayStats = get(
+  const todayStats = await get(
     `SELECT
-       COUNT(*) AS sessions,
-       SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
+       CAST(COUNT(*) AS INTEGER) AS sessions,
+       CAST(SUM(CASE WHEN s.status = 'completed' THEN 1 ELSE 0 END) AS INTEGER) AS completed
      FROM borrow_sessions s
-     WHERE date(s.created_at) = ? ${scope}`,
+     WHERE substr(s.created_at, 1, 10) = ? ${scope}`,
     today,
     ...args,
   );
 
-  const newLeadsToday = get(
-    `SELECT COUNT(DISTINCT u.id) AS count
+  const newLeadsToday = await get(
+    `SELECT CAST(COUNT(DISTINCT u.id) AS INTEGER) AS count
        FROM users u
        JOIN borrow_sessions s ON s.user_id = u.id
-      WHERE date(u.created_at) = ? ${scope}`,
+      WHERE substr(u.created_at, 1, 10) = ? ${scope}`,
     today,
     ...args,
   );
@@ -131,41 +139,44 @@ staffRouter.get('/overview', (req, res) => {
       retired: fleet.retired ?? 0,
     },
     today: {
-      sessions: todayStats?.sessions ?? 0,
-      completed: todayStats?.completed ?? 0,
-      newLeads: newLeadsToday?.count ?? 0,
+      sessions: Number(todayStats?.sessions ?? 0),
+      completed: Number(todayStats?.completed ?? 0),
+      newLeads: Number(newLeadsToday?.count ?? 0),
     },
   });
 });
 
 /* --------------------------------------------------------------------------- fleet */
 
-staffRouter.get('/units', (req, res) => {
+staffRouter.get('/units', async (req, res) => {
   const storeId = scopeStoreId(req);
-  const rows = all(
+  const rows = await all(
     `SELECT * FROM units ${storeId ? 'WHERE store_id = ?' : ''} ORDER BY code`,
     ...(storeId ? [storeId] : []),
   );
-  res.json({
-    units: rows.map((row) => ({
-      ...view.unit(row, { includeToken: true }),
-      store: view.store(get('SELECT * FROM stores WHERE id = ?', row.store_id)),
-      currentSession: (() => {
-        const live = get(
-          `SELECT * FROM borrow_sessions WHERE unit_id = ? AND status IN ('pending','active')`,
-          row.id,
-        );
-        if (!live) return null;
-        return {
-          ...view.borrowSession(live),
-          guest: view.user(get('SELECT * FROM users WHERE id = ?', live.user_id)),
-        };
-      })(),
-    })),
-  });
+
+  const units = await Promise.all(
+    rows.map(async (row) => {
+      const live = await get(
+        `SELECT * FROM borrow_sessions WHERE unit_id = ? AND status IN ('pending','active')`,
+        row.id,
+      );
+      return {
+        ...(await view.unit(row, { includeToken: true })),
+        store: await view.store(await get('SELECT * FROM stores WHERE id = ?', row.store_id)),
+        currentSession: live
+          ? {
+              ...(await view.borrowSession(live)),
+              guest: view.user(await get('SELECT * FROM users WHERE id = ?', live.user_id)),
+            }
+          : null,
+      };
+    }),
+  );
+  res.json({ units });
 });
 
-staffRouter.patch('/units/:id', (req, res) => {
+staffRouter.patch('/units/:id', async (req, res) => {
   const body = parse(
     z.object({
       status: z.enum(['available', 'maintenance', 'retired']).optional(),
@@ -173,90 +184,105 @@ staffRouter.patch('/units/:id', (req, res) => {
     }),
     req.body,
   );
-  const unitRow = get('SELECT * FROM units WHERE id = ?', req.params.id);
+  const unitRow = await get('SELECT * FROM units WHERE id = ?', req.params.id);
   if (!unitRow) throw notFound('unknown_unit', 'No such unit.');
   if (body.status && ['reserved', 'in_use'].includes(unitRow.status)) {
     throw conflict('unit_busy', 'Close the running session before changing this unit.');
   }
-  run(
+  await run(
     'UPDATE units SET status = COALESCE(?, status), condition_note = ?, last_serviced_at = ? WHERE id = ?',
     body.status ?? null,
     body.conditionNote === undefined ? unitRow.condition_note : body.conditionNote,
     body.status === 'available' ? nowIso() : unitRow.last_serviced_at,
     unitRow.id,
   );
-  track('unit_updated', {
+  await track('unit_updated', {
     unitId: unitRow.id,
     storeId: unitRow.store_id,
     payload: { ...body, staffId: req.staff.id },
   });
-  res.json({ unit: view.unit(get('SELECT * FROM units WHERE id = ?', unitRow.id), { includeToken: true }) });
+  res.json({
+    unit: await view.unit(await get('SELECT * FROM units WHERE id = ?', unitRow.id), {
+      includeToken: true,
+    }),
+  });
 });
 
 staffRouter.post('/units', requireRole('store_lead', 'admin'), async (req, res) => {
   const body = parse(
-    z.object({ productId: z.string(), storeId: z.string().optional(), count: z.number().int().min(1).max(20).default(1) }),
+    z.object({
+      productId: z.string(),
+      storeId: z.string().optional(),
+      count: z.number().int().min(1).max(20).default(1),
+    }),
     req.body,
   );
   const storeId = body.storeId ?? req.staff.store_id;
-  const storeRow = get('SELECT * FROM stores WHERE id = ?', storeId);
-  const productRow = get('SELECT * FROM products WHERE id = ?', body.productId);
+  const storeRow = await get('SELECT * FROM stores WHERE id = ?', storeId);
+  const productRow = await get('SELECT * FROM products WHERE id = ?', body.productId);
   if (!storeRow || !productRow) throw notFound('unknown_target', 'Unknown store or product.');
 
   const prefix = productRow.category === 'stroller' ? 'STR' : 'WCH';
   const created = [];
   for (let i = 0; i < body.count; i += 1) {
-    const seq = get(
-      'SELECT COUNT(*) AS count FROM units WHERE store_id = ? AND product_id = ?',
+    const seqRow = await get(
+      'SELECT CAST(COUNT(*) AS INTEGER) AS count FROM units WHERE store_id = ? AND product_id = ?',
       storeId,
       productRow.id,
-    ).count;
+    );
     const unitId = id();
-    run(
+    await run(
       `INSERT INTO units (id, code, qr_token, product_id, store_id, status, created_at)
        VALUES (?, ?, ?, ?, ?, 'available', ?)`,
       unitId,
-      `FRD-${storeRow.code}-${prefix}-${String(seq + 1 + i).padStart(3, '0')}`,
+      `FRD-${storeRow.code}-${prefix}-${String(Number(seqRow.count) + 1 + i).padStart(3, '0')}`,
       `u_${humanCode(10).toLowerCase()}`,
       productRow.id,
       storeId,
       nowIso(),
     );
-    created.push(view.unit(get('SELECT * FROM units WHERE id = ?', unitId), { includeToken: true }));
+    created.push(
+      await view.unit(await get('SELECT * FROM units WHERE id = ?', unitId), {
+        includeToken: true,
+      }),
+    );
   }
   res.status(201).json({ units: created });
 });
 
 /* ---------------------------------------------------------------- session handling */
 
-staffRouter.post('/sessions/:id/handover', (req, res) => {
+staffRouter.post('/sessions/:id/handover', async (req, res) => {
   const body = parse(z.object({ unlockCode: z.string() }), req.body);
-  const sessionRow = get('SELECT * FROM borrow_sessions WHERE id = ?', req.params.id);
+  const sessionRow = await get('SELECT * FROM borrow_sessions WHERE id = ?', req.params.id);
   if (!sessionRow) throw notFound('unknown_session', 'No such booking.');
   if (!timingSafeEqual(sessionRow.unlock_code, body.unlockCode.trim().toUpperCase())) {
     throw badRequest('bad_unlock_code', 'That code does not match this booking.');
   }
-  const updated = startSession(sessionRow, { by: `staff:${req.staff.id}` });
-  res.json({ session: view.borrowSession(updated) });
+  const updated = await startSession(sessionRow, { by: `staff:${req.staff.id}` });
+  res.json({ session: await view.borrowSession(updated) });
 });
 
-staffRouter.post('/sessions/:id/receive', (req, res) => {
+staffRouter.post('/sessions/:id/receive', async (req, res) => {
   const body = parse(
     z.object({ condition: z.enum(['good', 'damaged']).default('good') }),
     req.body ?? {},
   );
-  const sessionRow = get('SELECT * FROM borrow_sessions WHERE id = ?', req.params.id);
+  const sessionRow = await get('SELECT * FROM borrow_sessions WHERE id = ?', req.params.id);
   if (!sessionRow) throw notFound('unknown_session', 'No such booking.');
-  const result = completeSession(sessionRow, {
+  const result = await completeSession(sessionRow, {
     by: `staff:${req.staff.id}`,
     condition: body.condition,
   });
-  res.json({ session: view.borrowSession(result.session), offer: view.offer(result.offer) });
+  res.json({
+    session: await view.borrowSession(result.session),
+    offer: await view.offer(result.offer),
+  });
 });
 
 /* --------------------------------------------------------------------------- leads */
 
-function leadRows(req) {
+async function leadRows(req) {
   const storeId = scopeStoreId(req);
   const status = req.query.status;
   const search = req.query.q ? `%${String(req.query.q).toLowerCase()}%` : null;
@@ -274,7 +300,7 @@ function leadRows(req) {
     args.push(status);
   }
   if (search) {
-    clauses.push('(lower(COALESCE(u.name, \'\')) LIKE ? OR u.phone LIKE ?)');
+    clauses.push("(lower(COALESCE(u.name, '')) LIKE ? OR u.phone LIKE ?)");
     args.push(search, search);
   }
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -283,9 +309,10 @@ function leadRows(req) {
     `SELECT u.*, lp.primary_interest, lp.need_type, lp.child_age_months, lp.mobility_need,
             lp.buying_intent, lp.followup_status, lp.owner_staff_id, lp.notes,
             lp.updated_at AS profile_updated_at,
-            (SELECT COUNT(*) FROM borrow_sessions bs WHERE bs.user_id = u.id) AS session_count,
+            (SELECT CAST(COUNT(*) AS INTEGER) FROM borrow_sessions bs WHERE bs.user_id = u.id) AS session_count,
             (SELECT MAX(bs.created_at) FROM borrow_sessions bs WHERE bs.user_id = u.id) AS last_session_at,
-            (SELECT AVG(bs.rating) FROM borrow_sessions bs WHERE bs.user_id = u.id AND bs.rating IS NOT NULL) AS avg_rating
+            (SELECT CAST(AVG(bs.rating) AS REAL) FROM borrow_sessions bs
+              WHERE bs.user_id = u.id AND bs.rating IS NOT NULL) AS avg_rating
        FROM users u
        LEFT JOIN lead_profiles lp ON lp.user_id = u.id
        ${where}
@@ -313,17 +340,17 @@ const asLead = (row) => ({
   followupStatus: row.followup_status ?? 'new',
   ownerStaffId: row.owner_staff_id,
   notes: row.notes,
-  sessionCount: row.session_count,
+  sessionCount: Number(row.session_count ?? 0),
   lastSessionAt: row.last_session_at,
-  avgRating: row.avg_rating == null ? null : Math.round(row.avg_rating * 10) / 10,
+  avgRating: row.avg_rating == null ? null : Math.round(Number(row.avg_rating) * 10) / 10,
   updatedAt: row.profile_updated_at,
 });
 
-staffRouter.get('/leads', (req, res) => {
-  res.json({ leads: leadRows(req).map(asLead) });
+staffRouter.get('/leads', async (req, res) => {
+  res.json({ leads: (await leadRows(req)).map(asLead) });
 });
 
-staffRouter.get('/leads.csv', (req, res) => {
+staffRouter.get('/leads.csv', async (req, res) => {
   const escape = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const header = [
     'name', 'phone', 'email', 'city', 'interest', 'need', 'child_age_months', 'mobility_need',
@@ -331,7 +358,7 @@ staffRouter.get('/leads.csv', (req, res) => {
     'whatsapp_opt_in', 'notes',
   ];
   const lines = [header.join(',')];
-  for (const row of leadRows(req)) {
+  for (const row of await leadRows(req)) {
     const lead = asLead(row);
     lines.push(
       [
@@ -342,14 +369,17 @@ staffRouter.get('/leads.csv', (req, res) => {
       ].map(escape).join(','),
     );
   }
-  track('leads_exported', { storeId: req.staff.store_id, payload: { staffId: req.staff.id } });
+  await track('leads_exported', { storeId: req.staff.store_id, payload: { staffId: req.staff.id } });
   res
     .type('text/csv')
-    .set('Content-Disposition', `attachment; filename="frido-leads-${new Date().toISOString().slice(0, 10)}.csv"`)
+    .set(
+      'Content-Disposition',
+      `attachment; filename="frido-leads-${new Date().toISOString().slice(0, 10)}.csv"`,
+    )
     .send(lines.join('\n'));
 });
 
-staffRouter.patch('/leads/:userId', (req, res) => {
+staffRouter.patch('/leads/:userId', async (req, res) => {
   const body = parse(
     z.object({
       followupStatus: z.enum(['new', 'contacted', 'demo_booked', 'won', 'lost']).optional(),
@@ -358,10 +388,10 @@ staffRouter.patch('/leads/:userId', (req, res) => {
     }),
     req.body,
   );
-  const existing = get('SELECT * FROM lead_profiles WHERE user_id = ?', req.params.userId);
+  const existing = await get('SELECT * FROM lead_profiles WHERE user_id = ?', req.params.userId);
   if (!existing) throw notFound('unknown_lead', 'No such lead.');
 
-  run(
+  await run(
     `UPDATE lead_profiles
         SET followup_status = COALESCE(?, followup_status),
             notes = ?,
@@ -375,134 +405,172 @@ staffRouter.patch('/leads/:userId', (req, res) => {
     req.params.userId,
   );
 
-  track('lead_updated', {
+  await track('lead_updated', {
     userId: req.params.userId,
     payload: { ...body, staffId: req.staff.id },
   });
   res.json({
-    profile: view.leadProfile(get('SELECT * FROM lead_profiles WHERE user_id = ?', req.params.userId)),
+    profile: view.leadProfile(
+      await get('SELECT * FROM lead_profiles WHERE user_id = ?', req.params.userId),
+    ),
   });
 });
 
 /* -------------------------------------------------------------------------- offers */
 
-staffRouter.post('/offers/:code/redeem', (req, res) => {
-  const offerRow = get('SELECT * FROM offers WHERE code = ?', req.params.code.toUpperCase());
+staffRouter.post('/offers/:code/redeem', async (req, res) => {
+  const offerRow = await get('SELECT * FROM offers WHERE code = ?', req.params.code.toUpperCase());
   if (!offerRow) throw notFound('unknown_offer', 'No such code.');
   if (offerRow.redeemed_at) throw conflict('already_redeemed', 'This code was already used.');
   if (new Date(offerRow.expires_at).getTime() < Date.now()) {
     throw conflict('offer_expired', 'This code has expired.');
   }
-  run('UPDATE offers SET redeemed_at = ? WHERE id = ?', nowIso(), offerRow.id);
-  run(
+  await run('UPDATE offers SET redeemed_at = ? WHERE id = ?', nowIso(), offerRow.id);
+  await run(
     `UPDATE lead_profiles SET followup_status = 'won', updated_at = ? WHERE user_id = ?`,
     nowIso(),
     offerRow.user_id,
   );
-  track('offer_redeemed', {
+  await track('offer_redeemed', {
     userId: offerRow.user_id,
     sessionId: offerRow.session_id,
     storeId: req.staff.store_id,
     payload: { code: offerRow.code, staffId: req.staff.id },
   });
-  res.json({ offer: view.offer(get('SELECT * FROM offers WHERE id = ?', offerRow.id)) });
+  res.json({ offer: await view.offer(await get('SELECT * FROM offers WHERE id = ?', offerRow.id)) });
 });
 
 /* ----------------------------------------------------------------------- analytics */
 
-staffRouter.get('/analytics', (req, res) => {
+staffRouter.get('/analytics', async (req, res) => {
   const storeId = scopeStoreId(req);
   const days = Math.min(Number.parseInt(req.query.days ?? '30', 10) || 30, 120);
   const since = new Date(Date.now() - days * 24 * 60 * 60_000).toISOString();
+  const scopeArgs = storeId ? [storeId] : [];
 
-  const countEvents = (type) =>
-    get(
-      `SELECT COUNT(*) AS count FROM events
+  const countEvents = async (type) => {
+    const row = await get(
+      `SELECT CAST(COUNT(*) AS INTEGER) AS count FROM events
         WHERE type = ? AND at >= ? ${storeId ? 'AND store_id = ?' : ''}`,
       type,
       since,
-      ...(storeId ? [storeId] : []),
-    ).count;
+      ...scopeArgs,
+    );
+    return Number(row?.count ?? 0);
+  };
 
   // Yulu's funnel, renamed for a mall floor.
   const funnel = [
-    { key: 'scans', label: 'QR scanned', value: countEvents('scan') + countEvents('store_scan') },
-    { key: 'otp', label: 'Number entered', value: countEvents('otp_requested') },
-    { key: 'leads', label: 'Verified + new lead', value: countEvents('lead_created') },
-    { key: 'profiles', label: 'Profile completed', value: countEvents('profile_completed') },
-    { key: 'started', label: 'Unit handed over', value: countEvents('session_started') },
-    { key: 'completed', label: 'Returned', value: countEvents('session_completed') },
-    { key: 'redeemed', label: 'Offer redeemed', value: countEvents('offer_redeemed') },
+    {
+      key: 'scans',
+      label: 'QR scanned',
+      value: (await countEvents('scan')) + (await countEvents('store_scan')),
+    },
+    { key: 'otp', label: 'Number entered', value: await countEvents('otp_requested') },
+    { key: 'leads', label: 'Verified + new lead', value: await countEvents('lead_created') },
+    { key: 'profiles', label: 'Profile completed', value: await countEvents('profile_completed') },
+    { key: 'started', label: 'Unit handed over', value: await countEvents('session_started') },
+    { key: 'completed', label: 'Returned', value: await countEvents('session_completed') },
+    { key: 'redeemed', label: 'Offer redeemed', value: await countEvents('offer_redeemed') },
   ];
 
-  const daily = all(
-    `SELECT date(created_at) AS day,
-            COUNT(*) AS sessions,
-            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed
-       FROM borrow_sessions
-      WHERE created_at >= ? ${storeId ? 'AND store_id = ?' : ''}
-      GROUP BY day ORDER BY day`,
-    since,
-    ...(storeId ? [storeId] : []),
-  );
-
-  const byStore = all(
-    `SELECT st.id, st.name, m.name AS mall_name, m.city,
-            COUNT(bs.id) AS sessions,
-            COUNT(DISTINCT bs.user_id) AS guests,
-            AVG(bs.rating) AS avg_rating,
-            (SELECT COUNT(*) FROM units un WHERE un.store_id = st.id) AS unit_count
-       FROM stores st
-       JOIN malls m ON m.id = st.mall_id
-       LEFT JOIN borrow_sessions bs ON bs.store_id = st.id AND bs.created_at >= ?
-      ${storeId ? 'WHERE st.id = ?' : ''}
-      GROUP BY st.id ORDER BY sessions DESC`,
-    since,
-    ...(storeId ? [storeId] : []),
+  const daily = (
+    await all(
+      `SELECT substr(created_at, 1, 10) AS day,
+              CAST(COUNT(*) AS INTEGER) AS sessions,
+              CAST(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS INTEGER) AS completed
+         FROM borrow_sessions
+        WHERE created_at >= ? ${storeId ? 'AND store_id = ?' : ''}
+        GROUP BY substr(created_at, 1, 10) ORDER BY day`,
+      since,
+      ...scopeArgs,
+    )
   ).map((row) => ({
-    storeId: row.id,
-    storeName: row.name,
-    mallName: row.mall_name,
-    city: row.city,
-    sessions: row.sessions,
-    guests: row.guests,
-    unitCount: row.unit_count,
-    avgRating: row.avg_rating == null ? null : Math.round(row.avg_rating * 10) / 10,
-    sessionsPerUnit: row.unit_count ? Math.round((row.sessions / row.unit_count) * 10) / 10 : 0,
+    day: row.day,
+    sessions: Number(row.sessions),
+    completed: Number(row.completed ?? 0),
   }));
 
-  const byProduct = all(
-    `SELECT p.name, p.category, COUNT(bs.id) AS sessions, AVG(bs.rating) AS avg_rating
-       FROM products p
-       LEFT JOIN units un ON un.product_id = p.id
-       LEFT JOIN borrow_sessions bs ON bs.unit_id = un.id AND bs.created_at >= ?
-                                    ${storeId ? 'AND bs.store_id = ?' : ''}
-      GROUP BY p.id ORDER BY sessions DESC`,
-    since,
-    ...(storeId ? [storeId] : []),
+  const byStore = (
+    await all(
+      `SELECT st.id, st.name, m.name AS mall_name, m.city,
+              CAST(COUNT(bs.id) AS INTEGER) AS sessions,
+              CAST(COUNT(DISTINCT bs.user_id) AS INTEGER) AS guests,
+              CAST(AVG(bs.rating) AS REAL) AS avg_rating,
+              (SELECT CAST(COUNT(*) AS INTEGER) FROM units un WHERE un.store_id = st.id) AS unit_count
+         FROM stores st
+         JOIN malls m ON m.id = st.mall_id
+         LEFT JOIN borrow_sessions bs ON bs.store_id = st.id AND bs.created_at >= ?
+        ${storeId ? 'WHERE st.id = ?' : ''}
+        GROUP BY st.id, st.name, m.name, m.city ORDER BY sessions DESC`,
+      since,
+      ...scopeArgs,
+    )
+  ).map((row) => {
+    const sessions = Number(row.sessions);
+    const unitCount = Number(row.unit_count);
+    return {
+      storeId: row.id,
+      storeName: row.name,
+      mallName: row.mall_name,
+      city: row.city,
+      sessions,
+      guests: Number(row.guests),
+      unitCount,
+      avgRating: row.avg_rating == null ? null : Math.round(Number(row.avg_rating) * 10) / 10,
+      sessionsPerUnit: unitCount ? Math.round((sessions / unitCount) * 10) / 10 : 0,
+    };
+  });
+
+  const byProduct = (
+    await all(
+      `SELECT p.id, p.name, p.category,
+              CAST(COUNT(bs.id) AS INTEGER) AS sessions,
+              CAST(AVG(bs.rating) AS REAL) AS avg_rating
+         FROM products p
+         LEFT JOIN units un ON un.product_id = p.id
+         LEFT JOIN borrow_sessions bs ON bs.unit_id = un.id AND bs.created_at >= ?
+                                      ${storeId ? 'AND bs.store_id = ?' : ''}
+        GROUP BY p.id, p.name, p.category ORDER BY sessions DESC`,
+      since,
+      ...scopeArgs,
+    )
   ).map((row) => ({
     name: row.name,
     category: row.category,
-    sessions: row.sessions,
-    avgRating: row.avg_rating == null ? null : Math.round(row.avg_rating * 10) / 10,
+    sessions: Number(row.sessions),
+    avgRating: row.avg_rating == null ? null : Math.round(Number(row.avg_rating) * 10) / 10,
   }));
 
-  const intent = all(
-    `SELECT COALESCE(buying_intent, 'unknown') AS intent, COUNT(*) AS count
-       FROM lead_profiles GROUP BY intent`,
-  );
-  const pipeline = all(
-    `SELECT followup_status AS status, COUNT(*) AS count FROM lead_profiles GROUP BY status`,
-  );
+  const intent = (
+    await all(
+      `SELECT COALESCE(buying_intent, 'unknown') AS intent, CAST(COUNT(*) AS INTEGER) AS count
+         FROM lead_profiles GROUP BY COALESCE(buying_intent, 'unknown')`,
+    )
+  ).map((row) => ({ intent: row.intent, count: Number(row.count) }));
 
-  const durations = get(
-    `SELECT AVG((julianday(ended_at) - julianday(started_at)) * 24 * 60) AS avg_minutes
-       FROM borrow_sessions
-      WHERE status = 'completed' AND started_at IS NOT NULL AND created_at >= ?
-        ${storeId ? 'AND store_id = ?' : ''}`,
+  const pipeline = (
+    await all(
+      `SELECT followup_status AS status, CAST(COUNT(*) AS INTEGER) AS count
+         FROM lead_profiles GROUP BY followup_status`,
+    )
+  ).map((row) => ({ status: row.status, count: Number(row.count) }));
+
+  // Averaged in JS rather than SQL — SQLite and Postgres disagree on date arithmetic,
+  // and the completed-session count here is small.
+  const completed = await all(
+    `SELECT started_at, ended_at FROM borrow_sessions
+      WHERE status = 'completed' AND started_at IS NOT NULL AND ended_at IS NOT NULL
+        AND created_at >= ? ${storeId ? 'AND store_id = ?' : ''}`,
     since,
-    ...(storeId ? [storeId] : []),
+    ...scopeArgs,
   );
+  const avgSessionMinutes = completed.length
+    ? Math.round(
+        completed.reduce((total, row) => total + minutesBetween(row.started_at, row.ended_at), 0) /
+          completed.length,
+      )
+    : null;
 
   res.json({
     windowDays: days,
@@ -512,14 +580,14 @@ staffRouter.get('/analytics', (req, res) => {
     byProduct,
     intent,
     pipeline,
-    avgSessionMinutes: durations?.avg_minutes ? Math.round(durations.avg_minutes) : null,
+    avgSessionMinutes,
   });
 });
 
-staffRouter.get('/stores', (req, res) => {
+staffRouter.get('/stores', async (req, res) => {
   const rows =
     req.staff.role === 'admin'
-      ? all('SELECT * FROM stores WHERE is_active = 1 ORDER BY name')
-      : all('SELECT * FROM stores WHERE id = ?', req.staff.store_id);
-  res.json({ stores: rows.map((row) => view.store(row)) });
+      ? await all('SELECT * FROM stores WHERE is_active = 1 ORDER BY name')
+      : await all('SELECT * FROM stores WHERE id = ?', req.staff.store_id);
+  res.json({ stores: await view.many(rows, view.store) });
 });

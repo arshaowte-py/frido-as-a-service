@@ -44,27 +44,27 @@ const bearer = (req) => {
 };
 
 /** Populates req.user when a valid guest token is present; never rejects. */
-export function optionalGuest(req, _res, next) {
+export async function optionalGuest(req, _res, next) {
   const payload = verifyToken(bearer(req), 'guest');
   if (payload?.sub) {
-    req.user = get('SELECT * FROM users WHERE id = ?', payload.sub);
+    req.user = await get('SELECT * FROM users WHERE id = ?', payload.sub);
   }
   next();
 }
 
-export function requireGuest(req, _res, next) {
+export async function requireGuest(req, _res, next) {
   const payload = verifyToken(bearer(req), 'guest');
   if (!payload?.sub) return next(unauthorized('not_verified', 'Verify your mobile number first.'));
-  const user = get('SELECT * FROM users WHERE id = ?', payload.sub);
+  const user = await get('SELECT * FROM users WHERE id = ?', payload.sub);
   if (!user) return next(unauthorized('not_verified', 'Session expired. Verify again.'));
   req.user = user;
   next();
 }
 
-export function requireStaff(req, _res, next) {
+export async function requireStaff(req, _res, next) {
   const payload = verifyToken(bearer(req), 'staff');
   if (!payload?.sub) return next(unauthorized('staff_auth_required', 'Sign in with your store PIN.'));
-  const member = get('SELECT * FROM staff WHERE id = ? AND is_active = 1', payload.sub);
+  const member = await get('SELECT * FROM staff WHERE id = ? AND is_active = 1', payload.sub);
   if (!member) return next(unauthorized('staff_auth_required', 'Sign in with your store PIN.'));
   req.staff = member;
   next();

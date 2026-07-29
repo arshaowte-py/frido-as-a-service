@@ -37,9 +37,9 @@ export const isValidIndianMobile = (phone) => /^[6-9]\d{9}$/.test(phone);
 export const rupees = (paise) => Math.round((paise ?? 0) / 100);
 
 /** Append-only funnel log. Never throws — analytics must not break the guest flow. */
-export function track(type, fields = {}) {
+export async function track(type, fields = {}) {
   try {
-    run(
+    await run(
       `INSERT INTO events (id, at, type, user_id, session_id, unit_id, store_id, payload_json)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       id(),

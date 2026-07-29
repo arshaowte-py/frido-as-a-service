@@ -33,34 +33,39 @@ const parse = (schema, payload) => {
 
 /* ------------------------------------------------------------------ catalogue */
 
-publicRouter.get('/products', (_req, res) => {
-  res.json({ products: all('SELECT * FROM products ORDER BY category').map(view.product) });
+publicRouter.get('/products', async (_req, res) => {
+  const rows = await all('SELECT * FROM products ORDER BY category');
+  res.json({ products: rows.map(view.product) });
 });
 
-publicRouter.get('/malls', (_req, res) => {
-  const malls = all('SELECT * FROM malls ORDER BY city, name').map((mall) => ({
-    id: mall.id,
-    name: mall.name,
-    city: mall.city,
-    address: mall.address,
-    stores: all('SELECT * FROM stores WHERE mall_id = ? AND is_active = 1', mall.id).map((s) =>
-      view.store(s, mall),
-    ),
-  }));
+publicRouter.get('/malls', async (_req, res) => {
+  const mallRows = await all('SELECT * FROM malls ORDER BY city, name');
+  const malls = await Promise.all(
+    mallRows.map(async (mall) => ({
+      id: mall.id,
+      name: mall.name,
+      city: mall.city,
+      address: mall.address,
+      stores: await view.many(
+        await all('SELECT * FROM stores WHERE mall_id = ? AND is_active = 1', mall.id),
+        (row) => view.store(row, mall),
+      ),
+    })),
+  );
   res.json({ malls });
 });
 
 /* ------------------------------------------------------------- the QR entry point */
 
 // Sticker on the physical unit. This is the equivalent of walking up to a Yulu bike.
-publicRouter.get('/scan/:qrToken', optionalGuest, (req, res, next) => {
-  const unitRow = get('SELECT * FROM units WHERE qr_token = ?', req.params.qrToken);
+publicRouter.get('/scan/:qrToken', optionalGuest, async (req, res, next) => {
+  const unitRow = await get('SELECT * FROM units WHERE qr_token = ?', req.params.qrToken);
   if (!unitRow) return next(notFound('unknown_unit', 'This QR code is not registered yet.'));
 
-  const storeRow = get('SELECT * FROM stores WHERE id = ?', unitRow.store_id);
-  const productRow = get('SELECT * FROM products WHERE id = ?', unitRow.product_id);
+  const storeRow = await get('SELECT * FROM stores WHERE id = ?', unitRow.store_id);
+  const productRow = await get('SELECT * FROM products WHERE id = ?', unitRow.product_id);
 
-  track('scan', {
+  await track('scan', {
     unitId: unitRow.id,
     storeId: unitRow.store_id,
     userId: req.user?.id,
@@ -71,66 +76,73 @@ publicRouter.get('/scan/:qrToken', optionalGuest, (req, res, next) => {
   const alternatives =
     unitRow.status === 'available'
       ? []
-      : all(
-          `SELECT * FROM units
-            WHERE store_id = ? AND product_id = ? AND status = 'available' AND id != ?
-            ORDER BY lifetime_sessions LIMIT 3`,
-          unitRow.store_id,
-          unitRow.product_id,
-          unitRow.id,
-        ).map((row) => view.unit(row, { includeToken: true }));
+      : await view.many(
+          await all(
+            `SELECT * FROM units
+              WHERE store_id = ? AND product_id = ? AND status = 'available' AND id != ?
+              ORDER BY lifetime_sessions LIMIT 3`,
+            unitRow.store_id,
+            unitRow.product_id,
+            unitRow.id,
+          ),
+          view.unit,
+          { includeToken: true },
+        );
 
   res.json({
-    unit: view.unit(unitRow, { product: view.product(productRow) }),
+    unit: await view.unit(unitRow, { product: view.product(productRow) }),
     product: view.product(productRow),
-    store: view.store(storeRow),
+    store: await view.store(storeRow),
     policy: view.policy(),
     alternatives,
-    activeSession: req.user ? currentSessionFor(req.user.id) : null,
+    activeSession: req.user ? await currentSessionFor(req.user.id) : null,
   });
 });
 
 // Same payload as /scan but without logging a scan — used by the screens that come after
 // the sticker, so a page refresh doesn't inflate the top of the funnel.
-publicRouter.get('/units/:id', (req, res, next) => {
-  const unitRow = get('SELECT * FROM units WHERE id = ?', req.params.id);
+publicRouter.get('/units/:id', async (req, res, next) => {
+  const unitRow = await get('SELECT * FROM units WHERE id = ?', req.params.id);
   if (!unitRow) return next(notFound('unknown_unit', 'That unit is not registered.'));
   res.json({
-    unit: view.unit(unitRow),
-    product: view.product(get('SELECT * FROM products WHERE id = ?', unitRow.product_id)),
-    store: view.store(get('SELECT * FROM stores WHERE id = ?', unitRow.store_id)),
+    unit: await view.unit(unitRow),
+    product: view.product(await get('SELECT * FROM products WHERE id = ?', unitRow.product_id)),
+    store: await view.store(await get('SELECT * FROM stores WHERE id = ?', unitRow.store_id)),
     policy: view.policy(),
   });
 });
 
 // Standee QR at the store entrance: pick from whatever is free right now.
-publicRouter.get('/stores/:storeId/availability', (req, res, next) => {
-  const storeRow = get('SELECT * FROM stores WHERE id = ?', req.params.storeId);
+publicRouter.get('/stores/:storeId/availability', async (req, res, next) => {
+  const storeRow = await get('SELECT * FROM stores WHERE id = ?', req.params.storeId);
   if (!storeRow) return next(notFound('unknown_store', 'No such Frido store.'));
 
-  const products = all('SELECT * FROM products ORDER BY category').map((productRow) => {
-    const units = all(
-      `SELECT * FROM units
-        WHERE store_id = ? AND product_id = ? AND status = 'available'
-        ORDER BY lifetime_sessions`,
-      storeRow.id,
-      productRow.id,
-    );
-    return {
-      product: view.product(productRow),
-      availableCount: units.length,
-      units: units.map((row) => view.unit(row, { includeToken: true })),
-    };
-  });
+  const productRows = await all('SELECT * FROM products ORDER BY category');
+  const products = await Promise.all(
+    productRows.map(async (productRow) => {
+      const units = await all(
+        `SELECT * FROM units
+          WHERE store_id = ? AND product_id = ? AND status = 'available'
+          ORDER BY lifetime_sessions`,
+        storeRow.id,
+        productRow.id,
+      );
+      return {
+        product: view.product(productRow),
+        availableCount: units.length,
+        units: await view.many(units, view.unit, { includeToken: true }),
+      };
+    }),
+  );
 
-  track('store_scan', { storeId: storeRow.id });
-  res.json({ store: view.store(storeRow), policy: view.policy(), products });
+  await track('store_scan', { storeId: storeRow.id });
+  res.json({ store: await view.store(storeRow), policy: view.policy(), products });
 });
 
 /* --------------------------------------------------------------------- otp login */
 
 // Crude per-process throttle. A real deployment puts this in Redis with the SMS vendor's
-// own rate limits behind it.
+// own rate limits behind it — on serverless this only bounds a single warm instance.
 const otpAttemptWindow = new Map();
 function throttleOtp(phone) {
   const now = Date.now();
@@ -142,7 +154,7 @@ function throttleOtp(phone) {
   otpAttemptWindow.set(phone, hits);
 }
 
-publicRouter.post('/auth/otp/request', (req, res) => {
+publicRouter.post('/auth/otp/request', async (req, res) => {
   const body = parse(z.object({ phone: z.string() }), req.body);
   const phone = normalisePhone(body.phone);
   if (!isValidIndianMobile(phone)) {
@@ -152,7 +164,7 @@ publicRouter.post('/auth/otp/request', (req, res) => {
 
   const code = numericCode(6);
   const challengeId = id();
-  run(
+  await run(
     `INSERT INTO otp_challenges (id, phone, code_hash, expires_at, created_at)
      VALUES (?, ?, ?, ?, ?)`,
     challengeId,
@@ -162,7 +174,7 @@ publicRouter.post('/auth/otp/request', (req, res) => {
     nowIso(),
   );
 
-  track('otp_requested', { payload: { phone } });
+  await track('otp_requested', { payload: { phone } });
 
   if (config.otp.echo) {
     console.log(`[otp] ${phone} -> ${code}  (DEV_OTP_ECHO is on; no SMS was sent)`);
@@ -177,13 +189,13 @@ publicRouter.post('/auth/otp/request', (req, res) => {
   });
 });
 
-publicRouter.post('/auth/otp/verify', (req, res) => {
+publicRouter.post('/auth/otp/verify', async (req, res) => {
   const body = parse(
     z.object({ challengeId: z.string(), code: z.string().min(4).max(8) }),
     req.body,
   );
 
-  const challenge = get('SELECT * FROM otp_challenges WHERE id = ?', body.challengeId);
+  const challenge = await get('SELECT * FROM otp_challenges WHERE id = ?', body.challengeId);
   if (!challenge) throw badRequest('unknown_challenge', 'Request a fresh code.');
   if (challenge.consumed_at) throw badRequest('code_used', 'That code was already used.');
   if (new Date(challenge.expires_at).getTime() < Date.now()) {
@@ -194,59 +206,66 @@ publicRouter.post('/auth/otp/verify', (req, res) => {
   }
 
   if (!timingSafeEqual(sha256(body.code), challenge.code_hash)) {
-    run('UPDATE otp_challenges SET attempts = attempts + 1 WHERE id = ?', challenge.id);
+    await run('UPDATE otp_challenges SET attempts = attempts + 1 WHERE id = ?', challenge.id);
     throw badRequest('wrong_code', 'That code is not right.');
   }
-  run('UPDATE otp_challenges SET consumed_at = ? WHERE id = ?', nowIso(), challenge.id);
+  await run('UPDATE otp_challenges SET consumed_at = ? WHERE id = ?', nowIso(), challenge.id);
 
-  let userRow = get('SELECT * FROM users WHERE phone = ?', challenge.phone);
+  let userRow = await get('SELECT * FROM users WHERE phone = ?', challenge.phone);
   const isNew = !userRow;
   if (isNew) {
     const userId = id();
-    run(
+    await run(
       'INSERT INTO users (id, phone, created_at, last_seen_at) VALUES (?, ?, ?, ?)',
       userId,
       challenge.phone,
       nowIso(),
       nowIso(),
     );
-    run(
+    await run(
       'INSERT INTO lead_profiles (user_id, followup_status, updated_at) VALUES (?, ?, ?)',
       userId,
       'new',
       nowIso(),
     );
-    userRow = get('SELECT * FROM users WHERE id = ?', userId);
+    userRow = await get('SELECT * FROM users WHERE id = ?', userId);
   } else {
-    run('UPDATE users SET last_seen_at = ? WHERE id = ?', nowIso(), userRow.id);
+    await run('UPDATE users SET last_seen_at = ? WHERE id = ?', nowIso(), userRow.id);
   }
 
-  track(isNew ? 'lead_created' : 'otp_verified', { userId: userRow.id, payload: { isNew } });
+  await track(isNew ? 'lead_created' : 'otp_verified', { userId: userRow.id, payload: { isNew } });
 
   res.json({
     token: issueToken({ sub: userRow.id }, { audience: 'guest' }),
     user: view.user(userRow),
-    profile: view.leadProfile(get('SELECT * FROM lead_profiles WHERE user_id = ?', userRow.id)),
+    profile: view.leadProfile(
+      await get('SELECT * FROM lead_profiles WHERE user_id = ?', userRow.id),
+    ),
     isNew,
-    activeSession: currentSessionFor(userRow.id),
+    activeSession: await currentSessionFor(userRow.id),
   });
 });
 
 /* ------------------------------------------------------------------- guest profile */
 
-publicRouter.get('/me', requireGuest, (req, res) => {
+publicRouter.get('/me', requireGuest, async (req, res) => {
   res.json({
     user: view.user(req.user),
-    profile: view.leadProfile(get('SELECT * FROM lead_profiles WHERE user_id = ?', req.user.id)),
-    activeSession: currentSessionFor(req.user.id),
-    sessions: all(
-      'SELECT * FROM borrow_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 20',
-      req.user.id,
-    ).map((row) => view.borrowSession(row)),
-    offers: all(
-      'SELECT * FROM offers WHERE user_id = ? ORDER BY created_at DESC',
-      req.user.id,
-    ).map(view.offer),
+    profile: view.leadProfile(
+      await get('SELECT * FROM lead_profiles WHERE user_id = ?', req.user.id),
+    ),
+    activeSession: await currentSessionFor(req.user.id),
+    sessions: await view.many(
+      await all(
+        'SELECT * FROM borrow_sessions WHERE user_id = ? ORDER BY created_at DESC LIMIT 20',
+        req.user.id,
+      ),
+      view.borrowSession,
+    ),
+    offers: await view.many(
+      await all('SELECT * FROM offers WHERE user_id = ? ORDER BY created_at DESC', req.user.id),
+      view.offer,
+    ),
   });
 });
 
@@ -263,10 +282,10 @@ const profileSchema = z.object({
 });
 
 // The trade at the heart of the product: they tell us who they are, we hand over a unit.
-publicRouter.patch('/me/profile', requireGuest, (req, res) => {
+publicRouter.patch('/me/profile', requireGuest, async (req, res) => {
   const body = parse(profileSchema, req.body);
 
-  run(
+  await run(
     `UPDATE users SET name = ?, email = ?, city = ?, whatsapp_opt_in = ?, last_seen_at = ?
       WHERE id = ?`,
     body.name,
@@ -277,7 +296,7 @@ publicRouter.patch('/me/profile', requireGuest, (req, res) => {
     req.user.id,
   );
 
-  const existing = get('SELECT * FROM lead_profiles WHERE user_id = ?', req.user.id);
+  const existing = await get('SELECT * FROM lead_profiles WHERE user_id = ?', req.user.id);
   const merged = {
     primary_interest: body.primaryInterest ?? existing?.primary_interest ?? null,
     need_type: body.needType ?? existing?.need_type ?? null,
@@ -288,7 +307,7 @@ publicRouter.patch('/me/profile', requireGuest, (req, res) => {
   };
 
   if (existing) {
-    run(
+    await run(
       `UPDATE lead_profiles
           SET primary_interest = ?, need_type = ?, child_age_months = ?, mobility_need = ?,
               buying_intent = ?, updated_at = ?
@@ -302,7 +321,7 @@ publicRouter.patch('/me/profile', requireGuest, (req, res) => {
       req.user.id,
     );
   } else {
-    run(
+    await run(
       `INSERT INTO lead_profiles
          (user_id, primary_interest, need_type, child_age_months, mobility_need, buying_intent,
           followup_status, updated_at)
@@ -317,18 +336,20 @@ publicRouter.patch('/me/profile', requireGuest, (req, res) => {
     );
   }
 
-  track('profile_completed', { userId: req.user.id, payload: merged });
+  await track('profile_completed', { userId: req.user.id, payload: merged });
 
   res.json({
-    user: view.user(get('SELECT * FROM users WHERE id = ?', req.user.id)),
-    profile: view.leadProfile(get('SELECT * FROM lead_profiles WHERE user_id = ?', req.user.id)),
+    user: view.user(await get('SELECT * FROM users WHERE id = ?', req.user.id)),
+    profile: view.leadProfile(
+      await get('SELECT * FROM lead_profiles WHERE user_id = ?', req.user.id),
+    ),
   });
 });
 
 /* ----------------------------------------------------------------- borrow sessions */
 
-function currentSessionFor(userId) {
-  const row = get(
+async function currentSessionFor(userId) {
+  const row = await get(
     `SELECT * FROM borrow_sessions
       WHERE user_id = ? AND status IN ('pending', 'active')
       ORDER BY created_at DESC LIMIT 1`,
@@ -337,15 +358,15 @@ function currentSessionFor(userId) {
   return row ? view.borrowSession(row) : null;
 }
 
-function loadOwnSession(req) {
-  const row = get('SELECT * FROM borrow_sessions WHERE id = ?', req.params.id);
+async function loadOwnSession(req) {
+  const row = await get('SELECT * FROM borrow_sessions WHERE id = ?', req.params.id);
   if (!row || row.user_id !== req.user.id) {
     throw notFound('unknown_session', 'We could not find that booking.');
   }
   return row;
 }
 
-publicRouter.post('/sessions', requireGuest, (req, res) => {
+publicRouter.post('/sessions', requireGuest, async (req, res) => {
   const body = parse(
     z.object({
       unitId: z.string().optional(),
@@ -361,13 +382,13 @@ publicRouter.post('/sessions', requireGuest, (req, res) => {
   if (!req.user.name) {
     throw badRequest('profile_required', 'Tell us your name before picking up a unit.');
   }
-  if (currentSessionFor(req.user.id)) {
+  if (await currentSessionFor(req.user.id)) {
     throw conflict('already_borrowing', 'You already have a unit out. Return it first.');
   }
 
   const unitRow = body.unitId
-    ? get('SELECT * FROM units WHERE id = ?', body.unitId)
-    : get('SELECT * FROM units WHERE qr_token = ?', body.qrToken ?? '');
+    ? await get('SELECT * FROM units WHERE id = ?', body.unitId)
+    : await get('SELECT * FROM units WHERE qr_token = ?', body.qrToken ?? '');
   if (!unitRow) throw notFound('unknown_unit', 'That unit is not registered.');
   if (unitRow.status !== 'available') {
     throw conflict('unit_unavailable', 'Someone just took this one. Pick another.');
@@ -377,16 +398,16 @@ publicRouter.post('/sessions', requireGuest, (req, res) => {
   const ref = humanCode(6);
   const unlockCode = humanCode(4);
 
-  transaction(() => {
+  await transaction(async (tx) => {
     // Guard against two guests reserving the same unit between the read above and here.
-    const claimed = run(
+    const claimed = await tx.run(
       `UPDATE units SET status = 'reserved' WHERE id = ? AND status = 'available'`,
       unitRow.id,
     );
     if (claimed.changes === 0) {
       throw conflict('unit_unavailable', 'Someone just took this one. Pick another.');
     }
-    run(
+    await tx.run(
       `INSERT INTO borrow_sessions
          (id, ref, user_id, unit_id, store_id, status, unlock_code, purpose, party_size,
           deposit_type, created_at)
@@ -404,7 +425,7 @@ publicRouter.post('/sessions', requireGuest, (req, res) => {
     );
   });
 
-  track('session_reserved', {
+  await track('session_reserved', {
     userId: req.user.id,
     sessionId,
     unitId: unitRow.id,
@@ -413,12 +434,14 @@ publicRouter.post('/sessions', requireGuest, (req, res) => {
   });
 
   res.status(201).json({
-    session: view.borrowSession(get('SELECT * FROM borrow_sessions WHERE id = ?', sessionId)),
+    session: await view.borrowSession(
+      await get('SELECT * FROM borrow_sessions WHERE id = ?', sessionId),
+    ),
   });
 });
 
-publicRouter.get('/sessions/:id', requireGuest, (req, res) => {
-  res.json({ session: view.borrowSession(loadOwnSession(req)) });
+publicRouter.get('/sessions/:id', requireGuest, async (req, res) => {
+  res.json({ session: await view.borrowSession(await loadOwnSession(req)) });
 });
 
 /**
@@ -426,21 +449,21 @@ publicRouter.get('/sessions/:id', requireGuest, (req, res) => {
  * checking the unlock code; the guest-facing route exists so the prototype can be walked
  * through end to end by one person.
  */
-export function startSession(sessionRow, { by }) {
+export async function startSession(sessionRow, { by }) {
   if (sessionRow.status !== 'pending') {
     throw conflict('not_pending', 'This booking is not waiting for handover.');
   }
   const startedAt = nowIso();
-  transaction(() => {
-    run(
+  await transaction(async (tx) => {
+    await tx.run(
       `UPDATE borrow_sessions SET status = 'active', started_at = ?, due_at = ? WHERE id = ?`,
       startedAt,
       addMinutes(startedAt, config.borrow.freeMinutes),
       sessionRow.id,
     );
-    run(`UPDATE units SET status = 'in_use' WHERE id = ?`, sessionRow.unit_id);
+    await tx.run(`UPDATE units SET status = 'in_use' WHERE id = ?`, sessionRow.unit_id);
   });
-  track('session_started', {
+  await track('session_started', {
     userId: sessionRow.user_id,
     sessionId: sessionRow.id,
     unitId: sessionRow.unit_id,
@@ -450,89 +473,91 @@ export function startSession(sessionRow, { by }) {
   return get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id);
 }
 
-publicRouter.post('/sessions/:id/start', requireGuest, (req, res) => {
-  const updated = startSession(loadOwnSession(req), { by: 'guest' });
-  res.json({ session: view.borrowSession(updated) });
+publicRouter.post('/sessions/:id/start', requireGuest, async (req, res) => {
+  const updated = await startSession(await loadOwnSession(req), { by: 'guest' });
+  res.json({ session: await view.borrowSession(updated) });
 });
 
-publicRouter.post('/sessions/:id/extend', requireGuest, (req, res) => {
-  const sessionRow = loadOwnSession(req);
+publicRouter.post('/sessions/:id/extend', requireGuest, async (req, res) => {
+  const sessionRow = await loadOwnSession(req);
   if (sessionRow.status !== 'active') throw conflict('not_active', 'This session is not running.');
   if (sessionRow.extensions >= config.borrow.maxExtensions) {
     throw conflict('extension_limit', 'You have used all your extensions. Talk to our store team.');
   }
   // Extend from now when already overdue, otherwise from the existing due time.
-  const base =
-    new Date(sessionRow.due_at).getTime() < Date.now() ? nowIso() : sessionRow.due_at;
-  run(
+  const base = new Date(sessionRow.due_at).getTime() < Date.now() ? nowIso() : sessionRow.due_at;
+  await run(
     'UPDATE borrow_sessions SET due_at = ?, extensions = extensions + 1 WHERE id = ?',
     addMinutes(base, config.borrow.extensionMinutes),
     sessionRow.id,
   );
-  track('session_extended', {
+  await track('session_extended', {
     userId: req.user.id,
     sessionId: sessionRow.id,
     storeId: sessionRow.store_id,
     payload: { extension: sessionRow.extensions + 1 },
   });
   res.json({
-    session: view.borrowSession(get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id)),
+    session: await view.borrowSession(
+      await get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id),
+    ),
   });
 });
 
 /** Guest signals they're walking back — the store gets a heads-up on the live board. */
-publicRouter.post('/sessions/:id/return-intent', requireGuest, (req, res) => {
-  const sessionRow = loadOwnSession(req);
+publicRouter.post('/sessions/:id/return-intent', requireGuest, async (req, res) => {
+  const sessionRow = await loadOwnSession(req);
   if (sessionRow.status !== 'active') throw conflict('not_active', 'This session is not running.');
-  track('return_intent', {
+  await track('return_intent', {
     userId: req.user.id,
     sessionId: sessionRow.id,
     unitId: sessionRow.unit_id,
     storeId: sessionRow.store_id,
   });
   res.json({
-    session: view.borrowSession(sessionRow),
-    returnTo: view.store(get('SELECT * FROM stores WHERE id = ?', sessionRow.store_id)),
+    session: await view.borrowSession(sessionRow),
+    returnTo: await view.store(await get('SELECT * FROM stores WHERE id = ?', sessionRow.store_id)),
   });
 });
 
-export function completeSession(sessionRow, { by, condition }) {
+export async function completeSession(sessionRow, { by, condition }) {
   if (sessionRow.status !== 'active' && sessionRow.status !== 'pending') {
     throw conflict('not_returnable', 'This session is already closed.');
   }
   const endedAt = nowIso();
-  const productRow = get(
+  const productRow = await get(
     'SELECT p.* FROM products p JOIN units u ON u.product_id = p.id WHERE u.id = ?',
     sessionRow.unit_id,
   );
 
   const offerId = id();
   const offerCode = `MALL${humanCode(4)}`;
+  const returnCondition = condition ?? 'good';
 
-  transaction(() => {
-    run(
+  await transaction(async (tx) => {
+    await tx.run(
       `UPDATE borrow_sessions
           SET status = 'completed', ended_at = ?, return_condition = ?,
               started_at = COALESCE(started_at, ?)
         WHERE id = ?`,
       endedAt,
-      condition ?? 'good',
+      returnCondition,
       endedAt,
       sessionRow.id,
     );
-    run(
+    await tx.run(
       `UPDATE units
           SET status = CASE WHEN ? = 'damaged' THEN 'maintenance' ELSE 'available' END,
               lifetime_sessions = lifetime_sessions + 1,
               condition_note = CASE WHEN ? = 'damaged' THEN ? ELSE condition_note END
         WHERE id = ?`,
-      condition ?? 'good',
-      condition ?? 'good',
+      returnCondition,
+      returnCondition,
       `Flagged on return of ${sessionRow.ref}`,
       sessionRow.unit_id,
     );
     // The conversion hook: a mall-only code that is worth using before they leave.
-    run(
+    await tx.run(
       `INSERT INTO offers (id, code, user_id, session_id, product_id, discount_pct, expires_at, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       offerId,
@@ -546,14 +571,14 @@ export function completeSession(sessionRow, { by, condition }) {
     );
   });
 
-  track('session_completed', {
+  await track('session_completed', {
     userId: sessionRow.user_id,
     sessionId: sessionRow.id,
     unitId: sessionRow.unit_id,
     storeId: sessionRow.store_id,
-    payload: { by, condition: condition ?? 'good' },
+    payload: { by, condition: returnCondition },
   });
-  track('offer_issued', {
+  await track('offer_issued', {
     userId: sessionRow.user_id,
     sessionId: sessionRow.id,
     storeId: sessionRow.store_id,
@@ -561,40 +586,52 @@ export function completeSession(sessionRow, { by, condition }) {
   });
 
   return {
-    session: get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id),
-    offer: get('SELECT * FROM offers WHERE id = ?', offerId),
+    session: await get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id),
+    offer: await get('SELECT * FROM offers WHERE id = ?', offerId),
   };
 }
 
-publicRouter.post('/sessions/:id/complete', requireGuest, (req, res) => {
+publicRouter.post('/sessions/:id/complete', requireGuest, async (req, res) => {
   const body = parse(
     z.object({ condition: z.enum(['good', 'damaged']).default('good') }),
     req.body ?? {},
   );
-  const result = completeSession(loadOwnSession(req), { by: 'guest', condition: body.condition });
-  res.json({ session: view.borrowSession(result.session), offer: view.offer(result.offer) });
+  const result = await completeSession(await loadOwnSession(req), {
+    by: 'guest',
+    condition: body.condition,
+  });
+  res.json({
+    session: await view.borrowSession(result.session),
+    offer: await view.offer(result.offer),
+  });
 });
 
-publicRouter.post('/sessions/:id/cancel', requireGuest, (req, res) => {
-  const sessionRow = loadOwnSession(req);
+publicRouter.post('/sessions/:id/cancel', requireGuest, async (req, res) => {
+  const sessionRow = await loadOwnSession(req);
   if (sessionRow.status !== 'pending') {
     throw conflict('not_cancellable', 'Only a booking awaiting handover can be cancelled.');
   }
-  transaction(() => {
-    run(`UPDATE borrow_sessions SET status = 'cancelled', ended_at = ? WHERE id = ?`, nowIso(), sessionRow.id);
-    run(`UPDATE units SET status = 'available' WHERE id = ?`, sessionRow.unit_id);
+  await transaction(async (tx) => {
+    await tx.run(
+      `UPDATE borrow_sessions SET status = 'cancelled', ended_at = ? WHERE id = ?`,
+      nowIso(),
+      sessionRow.id,
+    );
+    await tx.run(`UPDATE units SET status = 'available' WHERE id = ?`, sessionRow.unit_id);
   });
-  track('session_cancelled', {
+  await track('session_cancelled', {
     userId: req.user.id,
     sessionId: sessionRow.id,
     storeId: sessionRow.store_id,
   });
   res.json({
-    session: view.borrowSession(get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id)),
+    session: await view.borrowSession(
+      await get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id),
+    ),
   });
 });
 
-publicRouter.post('/sessions/:id/feedback', requireGuest, (req, res) => {
+publicRouter.post('/sessions/:id/feedback', requireGuest, async (req, res) => {
   const body = parse(
     z.object({
       rating: z.number().int().min(1).max(5),
@@ -603,16 +640,16 @@ publicRouter.post('/sessions/:id/feedback', requireGuest, (req, res) => {
     }),
     req.body,
   );
-  const sessionRow = loadOwnSession(req);
+  const sessionRow = await loadOwnSession(req);
 
-  run(
+  await run(
     'UPDATE borrow_sessions SET rating = ?, feedback = ? WHERE id = ?',
     body.rating,
     body.feedback ?? null,
     sessionRow.id,
   );
   if (body.buyingIntent) {
-    run(
+    await run(
       'UPDATE lead_profiles SET buying_intent = ?, updated_at = ? WHERE user_id = ?',
       body.buyingIntent,
       nowIso(),
@@ -620,7 +657,7 @@ publicRouter.post('/sessions/:id/feedback', requireGuest, (req, res) => {
     );
   }
 
-  track('feedback_given', {
+  await track('feedback_given', {
     userId: req.user.id,
     sessionId: sessionRow.id,
     storeId: sessionRow.store_id,
@@ -628,7 +665,11 @@ publicRouter.post('/sessions/:id/feedback', requireGuest, (req, res) => {
   });
 
   res.json({
-    session: view.borrowSession(get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id)),
-    profile: view.leadProfile(get('SELECT * FROM lead_profiles WHERE user_id = ?', req.user.id)),
+    session: await view.borrowSession(
+      await get('SELECT * FROM borrow_sessions WHERE id = ?', sessionRow.id),
+    ),
+    profile: view.leadProfile(
+      await get('SELECT * FROM lead_profiles WHERE user_id = ?', req.user.id),
+    ),
   });
 });
