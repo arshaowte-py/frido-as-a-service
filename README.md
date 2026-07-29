@@ -43,6 +43,16 @@ npm run build       # build the client; `npm start` then serves it from the API
 
 Requires Node 22.5+ (the API uses the built-in `node:sqlite`).
 
+## Hosting
+
+Both halves run on one Netlify site: the client from the CDN, the whole Express API as a
+single function, and Netlify DB (Postgres) behind it. The site, its environment variables
+and the schema migration are already set up — **[docs/deploy-netlify.md](docs/deploy-netlify.md)**
+has the remaining steps and what changes about the OTP path once it's public.
+
+The data layer picks its driver from the environment: Postgres when a connection string is
+present, otherwise the local SQLite file. Nothing above changes.
+
 ---
 
 ## The flow, and where it came from
