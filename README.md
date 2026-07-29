@@ -10,7 +10,10 @@ store on the way out, and a mall-only discount lands on their screen.
 They pay nothing. What Frido gets is a named person with a stated need, two trips to the
 store, and a reason to call them next week.
 
-Frido has stores in roughly 12 malls. This is the prototype for running that programme.
+Frido has stores in 13 malls. This is the prototype for running that programme.
+
+For location tagging and everything a full production system needs, see
+**[docs/system-architecture.md](docs/system-architecture.md)**.
 
 <!-- Screens: guest journey is mobile-first; the store console is a counter tablet. -->
 
