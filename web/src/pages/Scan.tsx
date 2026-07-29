@@ -67,7 +67,12 @@ export default function Scan() {
       <div className="space-y-5 p-5 rise">
         <Card className="overflow-hidden">
           <div className="flex items-center gap-4 p-4">
-            <ProductArt category={product.category} className="h-24 w-28 shrink-0" />
+            <ProductArt
+              category={product.category}
+              src={product.imageUrl}
+              alt={product.name}
+              className="h-28 w-32 shrink-0"
+            />
             <div className="min-w-0">
               <Pill tone={available ? 'green' : 'amber'}>
                 {available ? 'Ready to go' : 'Currently out'}

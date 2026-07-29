@@ -104,6 +104,8 @@ export default function History() {
                   {session.unit?.product && (
                     <ProductArt
                       category={session.unit.product.category}
+                      src={session.unit.product.imageUrl}
+                      alt={session.unit.product.name}
                       className="h-14 w-16 shrink-0"
                     />
                   )}

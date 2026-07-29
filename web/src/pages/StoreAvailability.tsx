@@ -47,7 +47,12 @@ export default function StoreAvailability() {
         {data.products.map(({ product, availableCount, units }) => (
           <Card key={product.id} className="overflow-hidden">
             <div className="flex items-center gap-4 p-4">
-              <ProductArt category={product.category} className="h-20 w-24 shrink-0" />
+              <ProductArt
+                category={product.category}
+                src={product.imageUrl}
+                alt={product.name}
+                className="h-20 w-24 shrink-0"
+              />
               <div className="min-w-0 flex-1">
                 <h2 className="text-sm font-bold text-ink-900">{product.name}</h2>
                 <p className="mt-1 text-xs text-ink-400">{product.tagline}</p>

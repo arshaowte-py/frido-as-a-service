@@ -84,7 +84,12 @@ export default function Home() {
           <div className="mt-8 grid gap-4 sm:grid-cols-2">
             {products.map((product) => (
               <Card key={product.id} className="flex gap-4 p-4">
-                <ProductArt category={product.category} className="h-24 w-28 shrink-0" />
+                <ProductArt
+                  category={product.category}
+                  src={product.imageUrl}
+                  alt={product.name}
+                  className="h-24 w-28 shrink-0"
+                />
                 <div className="min-w-0">
                   <h2 className="text-sm font-bold text-ink-900">{product.name}</h2>
                   <p className="mt-1 text-xs text-ink-500">{product.tagline}</p>

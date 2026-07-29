@@ -113,7 +113,14 @@ export default function Wrap() {
             </div>
             <div className="p-4">
               <div className="flex items-center gap-4">
-                {product && <ProductArt category={product.category} className="h-16 w-20 shrink-0" />}
+                {product && (
+                  <ProductArt
+                    category={product.category}
+                    src={product.imageUrl}
+                    alt={product.name}
+                    className="h-16 w-20 shrink-0"
+                  />
+                )}
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-ink-900">{product?.name}</p>
                   {product?.price && (

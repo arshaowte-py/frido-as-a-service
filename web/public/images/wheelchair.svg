@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 200" role="img" aria-label="Frido Prime Plus Electric Wheelchair">
+  <title>Frido Prime Plus Electric Wheelchair</title>
+  <defs>
+    <linearGradient id="wheelchairBg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eefbf7" />
+      <stop offset="100%" stop-color="#d3f5ec" />
+    </linearGradient>
+  </defs>
+
+  <rect width="240" height="200" rx="20" fill="url(#wheelchairBg)" />
+  <ellipse cx="126" cy="176" rx="74" ry="9" fill="#7fdcc6" opacity="0.5" />
+
+  <g fill="none" stroke="#0a6957" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+    <!-- backrest and seat -->
+    <path d="M82 60h24v46H82z" fill="#12a186" stroke="none" />
+    <path d="M78 112V56" />
+    <path d="M78 56h30" stroke-width="5" />
+    <path d="M78 112h62" />
+
+    <!-- armrest with joystick -->
+    <path d="M100 84h44" stroke-width="5" />
+    <path d="M144 84V74" stroke-width="5" />
+    <circle cx="144" cy="70" r="6" fill="#f59e0b" stroke-width="4" />
+
+    <!-- battery pack -->
+    <path d="M96 118h40a5 5 0 0 1 5 5v12a5 5 0 0 1-5 5H96a5 5 0 0 1-5-5v-12a5 5 0 0 1 5-5z" fill="#d3f5ec" stroke-width="5" />
+
+    <!-- footplate -->
+    <path d="M140 112l24 14" />
+    <path d="M158 130l16 6" stroke-width="5" />
+
+    <!-- drive wheel -->
+    <circle cx="98" cy="146" r="26" fill="#ffffff" />
+    <g stroke-width="3" opacity="0.5">
+      <path d="M98 122v14" />
+      <path d="M98 156v14" />
+      <path d="M74 146h14" />
+      <path d="M108 146h14" />
+    </g>
+
+    <!-- front caster -->
+    <circle cx="176" cy="152" r="12" fill="#ffffff" />
+    <path d="M176 140v-8" stroke-width="5" />
+  </g>
+
+  <circle cx="98" cy="146" r="9" fill="#0a6957" />
+  <circle cx="176" cy="152" r="4" fill="#0a6957" />
+</svg>

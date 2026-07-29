@@ -228,7 +228,14 @@ export default function Session() {
         {error && <Alert>{error}</Alert>}
 
         <Card className="flex items-center gap-4 p-4">
-          {product && <ProductArt category={product.category} className="h-16 w-20 shrink-0" />}
+          {product && (
+            <ProductArt
+              category={product.category}
+              src={product.imageUrl}
+              alt={product.name}
+              className="h-16 w-20 shrink-0"
+            />
+          )}
           <div className="min-w-0">
             <p className="text-sm font-bold text-ink-900">{product?.name}</p>
             <p className="mt-0.5 text-xs text-ink-400">

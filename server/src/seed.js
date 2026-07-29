@@ -12,7 +12,7 @@
  * fetches, so MRP / selling price / feature copy were filled in by hand and must be
  * checked against the PDPs before this is shown to anyone outside the team.
  */
-import { bulkInsert, exec, get, migrate, run } from './db.js';
+import { bulkInsert, exec, get, migrate, run, transaction } from './db.js';
 import { addMinutes, humanCode, id, nowIso } from './util.js';
 
 // Deterministic PRNG so a reseed produces the same demo estate.
@@ -120,10 +120,13 @@ export async function wipe() {
 }
 
 /**
- * @param {{ reset?: boolean, historyDays?: number }} [options]
+ * @param {{ reset?: boolean, historyDays?: number, atomic?: boolean }} [options]
+ *   atomic writes everything in one transaction, so two serverless instances racing to
+ *   seed the same empty database cannot both half-succeed — units.code is UNIQUE, so the
+ *   loser rolls back cleanly.
  * @returns {Promise<{ seeded: boolean, counts?: object, sampleQrToken?: string }>}
  */
-export async function seedDatabase({ reset = false, historyDays = 30 } = {}) {
+export async function seedDatabase({ reset = false, historyDays = 30, atomic = false } = {}) {
   await migrate();
   if (reset) await wipe();
 
@@ -365,61 +368,69 @@ export async function seedDatabase({ reset = false, historyDays = 30 } = {}) {
   }
 
   // --- write --------------------------------------------------------------------
-  await bulkInsert(
-    'products',
-    ['id', 'slug', 'category', 'name', 'tagline', 'product_url', 'image_url', 'mrp_paise',
-      'price_paise', 'features_json', 'deposit_note'],
-    products,
-  );
-  await bulkInsert('malls', ['id', 'name', 'city', 'address', 'created_at'], malls);
-  await bulkInsert(
-    'stores',
-    ['id', 'mall_id', 'code', 'name', 'floor', 'unit_no', 'phone', 'created_at'],
-    stores,
-  );
-  await bulkInsert(
-    'units',
-    ['id', 'code', 'qr_token', 'product_id', 'store_id', 'status', 'lifetime_sessions', 'created_at'],
-    units,
-  );
-  await bulkInsert(
-    'staff',
-    ['id', 'name', 'phone', 'store_id', 'pin', 'role', 'is_active', 'created_at'],
-    staff,
-  );
-  await bulkInsert(
-    'users',
-    ['id', 'phone', 'name', 'email', 'city', 'whatsapp_opt_in', 'created_at', 'last_seen_at'],
-    users,
-  );
-  await bulkInsert(
-    'lead_profiles',
-    ['user_id', 'primary_interest', 'need_type', 'child_age_months', 'mobility_need',
-      'buying_intent', 'followup_status', 'updated_at'],
-    leads,
-  );
-  await bulkInsert(
-    'borrow_sessions',
-    ['id', 'ref', 'user_id', 'unit_id', 'store_id', 'status', 'unlock_code', 'purpose',
-      'party_size', 'deposit_type', 'started_at', 'due_at', 'ended_at', 'extensions',
-      'return_condition', 'rating', 'feedback', 'created_at'],
-    sessions,
-  );
-  await bulkInsert(
-    'offers',
-    ['id', 'code', 'user_id', 'session_id', 'product_id', 'discount_pct', 'expires_at',
-      'redeemed_at', 'created_at'],
-    offers,
-  );
-  await bulkInsert(
-    'events',
-    ['id', 'at', 'type', 'user_id', 'session_id', 'unit_id', 'store_id', 'payload_json'],
-    events,
-  );
+  const writeAll = async (execute) => {
+    await bulkInsert(
+      'products',
+      ['id', 'slug', 'category', 'name', 'tagline', 'product_url', 'image_url', 'mrp_paise',
+        'price_paise', 'features_json', 'deposit_note'],
+      products, execute,
+    );
+    await bulkInsert('malls', ['id', 'name', 'city', 'address', 'created_at'], malls, execute);
+    await bulkInsert(
+      'stores',
+      ['id', 'mall_id', 'code', 'name', 'floor', 'unit_no', 'phone', 'created_at'],
+      stores, execute,
+    );
+    await bulkInsert(
+      'units',
+      ['id', 'code', 'qr_token', 'product_id', 'store_id', 'status', 'lifetime_sessions',
+        'created_at'],
+      units, execute,
+    );
+    await bulkInsert(
+      'staff',
+      ['id', 'name', 'phone', 'store_id', 'pin', 'role', 'is_active', 'created_at'],
+      staff, execute,
+    );
+    await bulkInsert(
+      'users',
+      ['id', 'phone', 'name', 'email', 'city', 'whatsapp_opt_in', 'created_at', 'last_seen_at'],
+      users, execute,
+    );
+    await bulkInsert(
+      'lead_profiles',
+      ['user_id', 'primary_interest', 'need_type', 'child_age_months', 'mobility_need',
+        'buying_intent', 'followup_status', 'updated_at'],
+      leads, execute,
+    );
+    await bulkInsert(
+      'borrow_sessions',
+      ['id', 'ref', 'user_id', 'unit_id', 'store_id', 'status', 'unlock_code', 'purpose',
+        'party_size', 'deposit_type', 'started_at', 'due_at', 'ended_at', 'extensions',
+        'return_condition', 'rating', 'feedback', 'created_at'],
+      sessions, execute,
+    );
+    await bulkInsert(
+      'offers',
+      ['id', 'code', 'user_id', 'session_id', 'product_id', 'discount_pct', 'expires_at',
+        'redeemed_at', 'created_at'],
+      offers, execute,
+    );
+    await bulkInsert(
+      'events',
+      ['id', 'at', 'type', 'user_id', 'session_id', 'unit_id', 'store_id', 'payload_json'],
+      events, execute,
+    );
+    await execute(
+      `UPDATE units SET condition_note = 'Pulled for a service check' WHERE status = 'maintenance'`,
+    );
+  };
 
-  await run(
-    `UPDATE units SET condition_note = 'Pulled for a service check' WHERE status = 'maintenance'`,
-  );
+  if (atomic) {
+    await transaction(async (tx) => writeAll((sql, ...params) => tx.run(sql, ...params)));
+  } else {
+    await writeAll(run);
+  }
 
   const sample = await get(`SELECT code, qr_token FROM units WHERE status = 'available' LIMIT 1`);
 

@@ -159,7 +159,7 @@ function driver() {
  *
  * Chunk size keeps the parameter count under Postgres's 65535 limit.
  */
-export async function bulkInsert(table, columns, rows) {
+export async function bulkInsert(table, columns, rows, execute = run) {
   if (rows.length === 0) return 0;
   const perChunk = Math.max(1, Math.floor(60000 / columns.length));
   const placeholder = `(${columns.map(() => '?').join(', ')})`;
@@ -170,10 +170,20 @@ export async function bulkInsert(table, columns, rows) {
     const sql =
       `INSERT INTO ${table} (${columns.join(', ')}) VALUES ` +
       chunk.map(() => placeholder).join(', ');
-    await run(sql, ...chunk.flat());
+    await execute(sql, ...chunk.flat());
     inserted += chunk.length;
   }
   return inserted;
+}
+
+/** Whether the schema has actually been applied. Used by /api/health to diagnose. */
+export async function tablesExist() {
+  try {
+    await get('SELECT 1 FROM units LIMIT 1');
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export const all = async (sql, ...params) => (await driver()).all(sql, params);

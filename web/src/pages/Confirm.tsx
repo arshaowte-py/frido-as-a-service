@@ -90,7 +90,12 @@ export default function Confirm() {
 
       <form onSubmit={reserve} className="space-y-5 p-5 rise">
         <Card className="flex items-center gap-4 p-4">
-          <ProductArt category={context.product.category} className="h-20 w-24 shrink-0" />
+          <ProductArt
+            category={context.product.category}
+            src={context.product.imageUrl}
+            alt={context.product.name}
+            className="h-20 w-24 shrink-0"
+          />
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-ink-900">{context.product.name}</h2>
             <p className="text-xs text-ink-400">Unit {context.unit.code}</p>

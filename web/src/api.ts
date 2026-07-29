@@ -28,10 +28,23 @@ async function request<T>(
 
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
+    // A response with no JSON body means the API itself is down or misrouted rather than
+    // rejecting the request — say so, instead of a generic message with nothing to act on.
+    const fallback = payload
+      ? 'Something went wrong. Please try again.'
+      : `The API returned ${response.status} with no error details. ` +
+        'Check /api/health — it reports configuration and database problems.';
     throw new ApiError(
       response.status,
-      payload?.error?.code ?? 'network_error',
-      payload?.error?.message ?? 'Something went wrong. Please try again.',
+      payload?.error?.code ?? 'api_unavailable',
+      payload?.error?.message ?? fallback,
+    );
+  }
+  if (payload === null) {
+    throw new ApiError(
+      response.status,
+      'api_unavailable',
+      'The API returned something that was not JSON. Check /api/health.',
     );
   }
   return payload as T;

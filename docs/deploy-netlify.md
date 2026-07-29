@@ -46,8 +46,12 @@ netlify deploy --build --prod
 
 ## Filling the database
 
-Migrations create the tables but not the demo data — the seed is procedural, so it runs
-through a guarded endpoint once per environment:
+**Normally you don't have to.** Migrations create the tables, and the first request that
+finds an empty database seeds the demo estate itself (demo mode only — a real deployment
+should never invent 240 customers for itself). The write is one transaction and
+`units.code` is UNIQUE, so racing cold starts can't double-seed.
+
+To force it, or to rebuild from scratch, the guarded endpoint is still there:
 
 ```bash
 curl -X POST https://frido-as-a-service.netlify.app/api/admin/seed \
@@ -58,11 +62,33 @@ It is idempotent: with units already present it returns `{"seeded": false}` and 
 nothing. To rebuild from scratch, send `{"reset": true}`. With `ADMIN_TOKEN` unset the
 route returns 404 and cannot run at all.
 
+## When something is wrong, read /api/health
+
+It is built to answer even when the database is unreachable or unmigrated, and it never
+throws — an opaque 500 here would leave nothing to debug with. It returns 503 with an
+`issues` array naming the problem:
+
+```bash
+curl https://<your-site>.netlify.app/api/health
+```
+
+| `issues[].key` | What it means |
+| --- | --- |
+| `DATABASE` | No `NETLIFY_DATABASE_URL`. Netlify DB isn't enabled for the site — the function has no writable disk, so there is no fallback. |
+| `MIGRATIONS` | Tables don't exist. The deploy wasn't a production one, or migrations failed. |
+| `SEED` | Schema is fine but empty, and auto-seeding failed. Check the function log. |
+| `JWT_SECRET` | Not set. A key derived from the site ID is being used so sign-in still works — fine for a demo, not for real data. |
+| `DEMO_MODE` | Confirms one-time codes are coming back in API responses rather than by SMS. |
+
+None of these take the API down any more. A missing `JWT_SECRET` used to throw at module
+load, which killed the whole function and surfaced in the browser as a bare
+"Something went wrong" with nothing behind it.
+
 Then confirm:
 
 ```bash
 curl https://frido-as-a-service.netlify.app/api/health
-# {"ok":true,"demo":true,"driver":"postgres","units":84,...}
+# {"ok":true,"demo":true,"driver":"postgres","units":84,"issues":[...]}
 
 SMOKE_BASE_URL=https://frido-as-a-service.netlify.app npm run smoke
 ```

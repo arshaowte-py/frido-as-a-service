@@ -1,6 +1,5 @@
 import type { ButtonHTMLAttributes, ComponentPropsWithRef, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import type { Category } from './types';
 
 export const cx = (...parts: (string | false | null | undefined)[]) =>
   parts.filter(Boolean).join(' ');
@@ -286,44 +285,4 @@ export const Logo = ({ className }: { className?: string }) => (
 
 /* ------------------------------------------------------------------ product art */
 
-/**
- * Line illustrations stand in for real product photography. Swapping in the shots from
- * the PDPs is a one-line change in the seed (`image_url`) plus a src here.
- */
-export function ProductArt({ category, className }: { category: Category; className?: string }) {
-  if (category === 'wheelchair') {
-    return (
-      <svg viewBox="0 0 200 160" className={className} role="img" aria-label="Electric wheelchair">
-        <rect width="200" height="160" rx="16" className="fill-brand-50" />
-        <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="text-brand-700">
-          <circle cx="78" cy="112" r="26" />
-          <circle cx="78" cy="112" r="8" />
-          <circle cx="134" cy="126" r="12" />
-          <path d="M60 86h44l10-30" />
-          <path d="M104 86v28" />
-          <path d="M60 86 52 60h30" />
-          <path d="M112 60h16l6 22" />
-          <path d="M118 96h22" />
-          <path d="M140 96v18" />
-          <circle cx="150" cy="70" r="6" />
-        </g>
-      </svg>
-    );
-  }
-  return (
-    <svg viewBox="0 0 200 160" className={className} role="img" aria-label="Travel stroller">
-      <rect width="200" height="160" rx="16" className="fill-brand-50" />
-      <g fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" className="text-brand-700">
-        <circle cx="72" cy="118" r="14" />
-        <circle cx="140" cy="118" r="14" />
-        <path d="M56 54h50a30 30 0 0 1 30 30v6H70z" />
-        <path d="M70 90 60 118" />
-        <path d="M136 90l4 28" />
-        <path d="M70 90h66" />
-        <path d="M56 54 44 40" />
-        <path d="M136 62l22-16" />
-        <path d="M152 40h14" />
-      </g>
-    </svg>
-  );
-}
+export { ProductArt } from './ProductArt';
