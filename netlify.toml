@@ -5,6 +5,17 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+  # Shipped from node_modules rather than bundled. These are CommonJS, and esbuild's ESM
+  # output cannot honour their runtime require() calls — serverless-http lazily does
+  # require('http'), which throws "Dynamic require of http is not supported" once bundled.
+  external_node_modules = [
+    "serverless-http",
+    "express",
+    "cors",
+    "zod",
+    "qrcode",
+    "@netlify/database",
+  ]
 
 # The API is one Express app behind a single function. Declared before the SPA fallback
 # so it wins for anything under /api.
